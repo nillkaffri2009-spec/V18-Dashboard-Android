@@ -5,28 +5,16 @@
 //
 // Architecture:
 // Google Sheets -> Cloudflare Worker -> Admin / Phone / Monitor
-//
-// Spreadsheet:
-// 1IWyUdorge58MbvpNlB5Z08Rawm8AdoeHinxgjiFktF4
 // ============================================================
 
 const VERSION = "18.5";
-
-const SPREADSHEET_ID =
-  "1IWyUdorge58MbvpNlB5Z08Rawm8AdoeHinxgjiFktF4";
-
-
-// ============================================================
-// CORS
-// ============================================================
+const SPREADSHEET_ID = "1IWyUdorge58MbvpNlB5Z08Rawm8AdoeHinxgjiFktF4";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods":
-    "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers":
-    "Content-Type, Authorization, X-V18-Device",
-  "Access-Control-Max-Age": "86400"
+  "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-V18-Device",
+  "Access-Control-Max-Age": "86400",
 };
 
 
@@ -35,45 +23,17 @@ const CORS_HEADERS = {
 // ============================================================
 
 function json(data, status = 200) {
-
   return new Response(
     JSON.stringify(data, null, 2),
     {
       status: status,
       headers: {
-        "Content-Type":
-          "application/json; charset=UTF-8",
-
-        "Cache-Control":
-          "no-store, no-cache, must-revalidate",
-
+        "Content-Type": "application/json; charset=UTF-8",
+        "Cache-Control": "no-store, no-cache, must-revalidate",
         ...CORS_HEADERS
       }
     }
   );
-
-}
-
-
-// ============================================================
-// TEXT RESPONSE
-// ============================================================
-
-function text(data, status = 200) {
-
-  return new Response(
-    data,
-    {
-      status: status,
-      headers: {
-        "Content-Type":
-          "text/plain; charset=UTF-8",
-
-        ...CORS_HEADERS
-      }
-    }
-  );
-
 }
 
 
@@ -82,23 +42,17 @@ function text(data, status = 200) {
 // ============================================================
 
 function html(data, status = 200) {
-
   return new Response(
     data,
     {
       status: status,
       headers: {
-        "Content-Type":
-          "text/html; charset=UTF-8",
-
-        "Cache-Control":
-          "no-store",
-
+        "Content-Type": "text/html; charset=UTF-8",
+        "Cache-Control": "no-store",
         ...CORS_HEADERS
       }
     }
   );
-
 }
 
 
@@ -107,17 +61,64 @@ function html(data, status = 200) {
 // ============================================================
 
 async function getJsonBody(request) {
-
   try {
-
     return await request.json();
-
   } catch (e) {
-
     return {};
+  }
+}
 
+
+// ============================================================
+// DEFAULT DASHBOARD STATE
+// ============================================================
+
+function defaultState() {
+  return {
+    version: VERSION,
+
+    controller: "admin",
+
+    screen: "kunlik",
+
+    department: "all",
+
+    shift: "all",
+
+    workHour: "all",
+
+    month: "",
+
+    day: "",
+
+    updatedAt: null,
+
+    updatedBy: null
+  };
+}
+
+
+// ============================================================
+// OPTIONAL WRITE SECURITY
+//
+// Агар Cloudflare'да V18_WRITE_KEY secret яратилмаган бўлса,
+// ёзиш ҳозирча очиқ қолади.
+//
+// Кейинчалик V18_WRITE_KEY secret қўшилса,
+// POST/PATCH/PUT учун Authorization талаб қилинади.
+// ============================================================
+
+function canWrite(request, env) {
+
+  if (!env || !env.V18_WRITE_KEY) {
+    return true;
   }
 
+  const auth =
+    request.headers.get("Authorization") || "";
+
+  return auth ===
+    `Bearer ${env.V18_WRITE_KEY}`;
 }
 
 
@@ -132,20 +133,22 @@ async function getGoogleXlsx() {
     SPREADSHEET_ID +
     "/export?format=xlsx";
 
-  const response = await fetch(
-    url,
-    {
-      headers: {
-        "User-Agent":
-          "V18-Dashboard-Cloud/18.5"
-      },
 
-      cf: {
-        cacheTtl: 0,
-        cacheEverything: false
+  const response =
+    await fetch(
+      url,
+      {
+        headers: {
+          "User-Agent":
+            "V18-Dashboard-Cloud/18.5"
+        },
+
+        cf: {
+          cacheTtl: 0,
+          cacheEverything: false
+        }
       }
-    }
-  );
+    );
 
 
   if (!response.ok) {
@@ -154,7 +157,6 @@ async function getGoogleXlsx() {
       "Google Sheets XLSX error: HTTP " +
       response.status
     );
-
   }
 
 
@@ -182,14 +184,13 @@ async function getGoogleXlsx() {
       }
     }
   );
-
 }
 
 
 // ============================================================
 // GOOGLE SHEETS CSV
 //
-// gid can be supplied:
+// Example:
 // /api/google-csv?gid=1701842361
 // ============================================================
 
@@ -207,20 +208,21 @@ async function getGoogleCsv(gid) {
     encodeURIComponent(gid);
 
 
-  const response = await fetch(
-    url,
-    {
-      headers: {
-        "User-Agent":
-          "V18-Dashboard-Cloud/18.5"
-      },
+  const response =
+    await fetch(
+      url,
+      {
+        headers: {
+          "User-Agent":
+            "V18-Dashboard-Cloud/18.5"
+        },
 
-      cf: {
-        cacheTtl: 0,
-        cacheEverything: false
+        cf: {
+          cacheTtl: 0,
+          cacheEverything: false
+        }
       }
-    }
-  );
+    );
 
 
   if (!response.ok) {
@@ -229,7 +231,6 @@ async function getGoogleCsv(gid) {
       "Google Sheets CSV error: HTTP " +
       response.status
     );
-
   }
 
 
@@ -254,7 +255,6 @@ async function getGoogleCsv(gid) {
       }
     }
   );
-
 }
 
 
@@ -294,7 +294,6 @@ async function testGoogleSheets() {
 
       spreadsheetId:
         SPREADSHEET_ID
-
     };
 
 
@@ -313,48 +312,8 @@ async function testGoogleSheets() {
             ? error.message
             : error
         )
-
     };
-
   }
-
-}
-
-
-// ============================================================
-// DASHBOARD DEFAULT STATE
-//
-// Durable Object is added in the next stage.
-// Until then this describes the state format used by all
-// Admin / Phone / Monitor clients.
-// ============================================================
-
-function defaultState() {
-
-  return {
-
-    version: VERSION,
-
-    controller: "admin",
-
-    screen: "kunlik",
-
-    department: "all",
-
-    shift: "all",
-
-    workHour: "all",
-
-    month: "",
-
-    day: "",
-
-    updatedAt: null,
-
-    updatedBy: null
-
-  };
-
 }
 
 
@@ -364,11 +323,6 @@ function defaultState() {
 
 async function getState(env) {
 
-  // ----------------------------------------------------------
-  // DURABLE OBJECT
-  // This becomes active after V18_STATE binding is created.
-  // ----------------------------------------------------------
-
   if (env && env.V18_STATE) {
 
     const id =
@@ -376,8 +330,10 @@ async function getState(env) {
         "main"
       );
 
+
     const object =
       env.V18_STATE.get(id);
+
 
     const response =
       await object.fetch(
@@ -386,17 +342,12 @@ async function getState(env) {
 
 
     if (response.ok) {
-
       return await response.json();
-
     }
-
   }
 
 
-  // No Durable Object binding yet.
   return defaultState();
-
 }
 
 
@@ -410,13 +361,14 @@ async function updateState(
   request
 ) {
 
-  if (!body ||
-      typeof body !== "object") {
+  if (
+    !body ||
+    typeof body !== "object"
+  ) {
 
     throw new Error(
       "Invalid state body"
     );
-
   }
 
 
@@ -428,17 +380,17 @@ async function updateState(
     "unknown";
 
 
-  body.updatedBy =
-    device;
+  const outgoing = {
 
+    ...body,
 
-  body.updatedAt =
-    new Date().toISOString();
+    updatedBy:
+      device,
 
+    updatedAt:
+      new Date().toISOString()
+  };
 
-  // ----------------------------------------------------------
-  // DURABLE OBJECT AVAILABLE
-  // ----------------------------------------------------------
 
   if (env && env.V18_STATE) {
 
@@ -446,6 +398,7 @@ async function updateState(
       env.V18_STATE.idFromName(
         "main"
       );
+
 
     const object =
       env.V18_STATE.get(id);
@@ -463,20 +416,14 @@ async function updateState(
           },
 
           body:
-            JSON.stringify(body)
+            JSON.stringify(outgoing)
         }
       );
 
 
     return await response.json();
-
   }
 
-
-  // ----------------------------------------------------------
-  // Binding not added yet.
-  // Do NOT pretend state was persisted.
-  // ----------------------------------------------------------
 
   return {
 
@@ -487,10 +434,9 @@ async function updateState(
     message:
       "V18_STATE Durable Object binding hali ulanmagan.",
 
-    received: body
-
+    received:
+      outgoing
   };
-
 }
 
 
@@ -513,49 +459,77 @@ function homePage() {
   name="viewport"
   content="width=device-width,initial-scale=1">
 
-<title>V18 Dashboard Cloud Server</title>
+<title>
+V18 Dashboard Cloud Server
+</title>
+
 
 <style>
 
 body {
+
   margin: 0;
+
   background: #f4f7fb;
+
   font-family:
     Arial,
     sans-serif;
+
   color: #17324d;
 }
 
+
 .box {
+
   max-width: 780px;
+
   margin: 60px auto;
+
   background: white;
+
   border-radius: 20px;
+
   padding: 32px;
+
   box-shadow:
     0 12px 40px
     rgba(0,0,0,.10);
 }
 
+
 h1 {
   margin-top: 0;
 }
 
+
 .ok {
+
   display: inline-block;
+
   background: #e8f7ee;
+
   color: #147a3d;
+
   padding: 8px 14px;
+
   border-radius: 999px;
+
   font-weight: bold;
 }
 
+
 .row {
+
   margin-top: 18px;
+
   padding: 15px;
+
   background: #f6f8fb;
+
   border-radius: 12px;
 }
+
 
 code {
   word-break: break-all;
@@ -574,49 +548,121 @@ code {
 V18 Dashboard Cloud Server
 </h1>
 
+
 <div class="ok">
 SERVER ONLINE
 </div>
 
+
 <div class="row">
+
 Version:
-<strong>${VERSION}</strong>
+
+<strong>
+${VERSION}
+</strong>
+
 </div>
 
+
 <div class="row">
+
 Computer server:
-<strong>NOT REQUIRED</strong>
+
+<strong>
+NOT REQUIRED
+</strong>
+
 </div>
 
+
 <div class="row">
+
 Google Sheets:
-<code>${SPREADSHEET_ID}</code>
+
+<code>
+${SPREADSHEET_ID}
+</code>
+
 </div>
 
+
 <div class="row">
+
 Health API:
-<code>/api/health</code>
+
+<code>
+/api/health
+</code>
+
 </div>
 
+
 <div class="row">
+
 Google test:
-<code>/api/google-test</code>
+
+<code>
+/api/google-test
+</code>
+
 </div>
 
+
 <div class="row">
+
 Google CSV:
-<code>/api/google-csv?gid=1701842361</code>
+
+<code>
+/api/google-csv?gid=1701842361
+</code>
+
 </div>
 
+
 <div class="row">
+
 Google XLSX:
-<code>/api/google-xlsx</code>
+
+<code>
+/api/google-xlsx
+</code>
+
 </div>
 
+
 <div class="row">
+
 Dashboard state:
-<code>/api/state</code>
+
+<code>
+/api/state
+</code>
+
 </div>
+
+
+<div class="row">
+
+Phone controller test:
+
+<code>
+/api/test-phone
+</code>
+
+</div>
+
+
+<div class="row">
+
+Admin controller test:
+
+<code>
+/api/test-admin
+</code>
+
+</div>
+
 
 </div>
 
@@ -624,7 +670,6 @@ Dashboard state:
 
 </html>
 `;
-
 }
 
 
@@ -670,7 +715,6 @@ export default {
               CORS_HEADERS
           }
         );
-
       }
 
 
@@ -683,7 +727,6 @@ export default {
         return html(
           homePage()
         );
-
       }
 
 
@@ -706,11 +749,21 @@ export default {
           computerRequired:
             false,
 
+          durableObjectConfigured:
+            Boolean(
+              env &&
+              env.V18_STATE
+            ),
+
+          writeKeyConfigured:
+            Boolean(
+              env &&
+              env.V18_WRITE_KEY
+            ),
+
           timestamp:
             new Date().toISOString()
-
         });
-
       }
 
 
@@ -725,7 +778,6 @@ export default {
 
 
         return json(result);
-
       }
 
 
@@ -744,7 +796,6 @@ export default {
         return await getGoogleCsv(
           gid
         );
-
       }
 
 
@@ -755,7 +806,6 @@ export default {
       if (path === "/api/google-xlsx") {
 
         return await getGoogleXlsx();
-
       }
 
 
@@ -782,10 +832,93 @@ export default {
               env.V18_STATE
             ),
 
-          state: state
-
+          state:
+            state
         });
+      }
 
+
+      // ======================================================
+      // TEMP TEST
+      // SWITCH CONTROLLER TO PHONE
+      // ======================================================
+
+      if (
+        path === "/api/test-phone" &&
+        method === "GET"
+      ) {
+
+        if (!canWrite(request, env)) {
+
+          return json(
+            {
+              ok: false,
+
+              error:
+                "Unauthorized"
+            },
+            401
+          );
+        }
+
+
+        const result =
+          await updateState(
+            env,
+            {
+              controller:
+                "phone",
+
+              updatedBy:
+                "phone-test"
+            },
+            request
+          );
+
+
+        return json(result);
+      }
+
+
+      // ======================================================
+      // TEMP TEST
+      // SWITCH CONTROLLER TO ADMIN
+      // ======================================================
+
+      if (
+        path === "/api/test-admin" &&
+        method === "GET"
+      ) {
+
+        if (!canWrite(request, env)) {
+
+          return json(
+            {
+              ok: false,
+
+              error:
+                "Unauthorized"
+            },
+            401
+          );
+        }
+
+
+        const result =
+          await updateState(
+            env,
+            {
+              controller:
+                "admin",
+
+              updatedBy:
+                "admin-test"
+            },
+            request
+          );
+
+
+        return json(result);
       }
 
 
@@ -802,6 +935,20 @@ export default {
         )
       ) {
 
+        if (!canWrite(request, env)) {
+
+          return json(
+            {
+              ok: false,
+
+              error:
+                "Unauthorized"
+            },
+            401
+          );
+        }
+
+
         const body =
           await getJsonBody(
             request
@@ -817,7 +964,6 @@ export default {
 
 
         return json(result);
-
       }
 
 
@@ -844,6 +990,18 @@ export default {
           localPcServerRequired:
             false,
 
+          durableObjectConfigured:
+            Boolean(
+              env &&
+              env.V18_STATE
+            ),
+
+          writeKeyConfigured:
+            Boolean(
+              env &&
+              env.V18_WRITE_KEY
+            ),
+
           endpoints: {
 
             health:
@@ -859,12 +1017,15 @@ export default {
               "/api/google-xlsx",
 
             state:
-              "/api/state"
+              "/api/state",
 
+            tempPhoneTest:
+              "/api/test-phone",
+
+            tempAdminTest:
+              "/api/test-admin"
           }
-
         });
-
       }
 
 
@@ -879,8 +1040,8 @@ export default {
           error:
             "V18 endpoint topilmadi.",
 
-          path: path
-
+          path:
+            path
         },
         404
       );
@@ -890,7 +1051,6 @@ export default {
 
       return json(
         {
-
           ok: false,
 
           error:
@@ -903,15 +1063,11 @@ export default {
 
           timestamp:
             new Date().toISOString()
-
         },
         500
       );
-
     }
-
   }
-
 };
 
 
@@ -919,7 +1075,7 @@ export default {
 // DURABLE OBJECT
 // V18 REAL-TIME STATE
 //
-// Binding name:
+// Binding:
 // V18_STATE
 //
 // Class:
@@ -938,7 +1094,6 @@ export class V18State {
 
     this.env =
       env;
-
   }
 
 
@@ -979,9 +1134,7 @@ export class V18State {
 
       updatedBy:
         null
-
     };
-
   }
 
 
@@ -1005,12 +1158,12 @@ export class V18State {
       return json(
         {
           ok: false,
+
           error:
             "State endpoint topilmadi."
         },
         404
       );
-
     }
 
 
@@ -1039,12 +1192,10 @@ export class V18State {
           "dashboard",
           data
         );
-
       }
 
 
       return json(data);
-
     }
 
 
@@ -1068,7 +1219,6 @@ export class V18State {
 
         current =
           this.defaultState();
-
       }
 
 
@@ -1083,21 +1233,31 @@ export class V18State {
       } catch (e) {
 
         incoming = {};
-
       }
 
 
-      // Only supported state fields are stored.
+      // ======================================================
+      // ALLOWED FIELDS
+      // ======================================================
 
       const allowed = [
+
         "controller",
+
         "screen",
+
         "department",
+
         "shift",
+
         "workHour",
+
         "month",
+
         "day",
+
         "updatedAt",
+
         "updatedBy"
       ];
 
@@ -1120,11 +1280,44 @@ export class V18State {
 
           update[key] =
             incoming[key];
-
         }
-
       }
 
+
+      // ======================================================
+      // CONTROLLER VALIDATION
+      // ======================================================
+
+      if (
+        Object.prototype
+          .hasOwnProperty
+          .call(
+            update,
+            "controller"
+          )
+      ) {
+
+        if (
+          update.controller !== "admin" &&
+          update.controller !== "phone"
+        ) {
+
+          return json(
+            {
+              ok: false,
+
+              error:
+                "controller faqat admin yoki phone bo'lishi mumkin."
+            },
+            400
+          );
+        }
+      }
+
+
+      // ======================================================
+      // MERGE STATE
+      // ======================================================
 
       const next = {
 
@@ -1138,9 +1331,12 @@ export class V18State {
         updatedAt:
           incoming.updatedAt ||
           new Date().toISOString()
-
       };
 
+
+      // ======================================================
+      // SAVE PERMANENTLY
+      // ======================================================
 
       await this.state.storage.put(
         "dashboard",
@@ -1157,21 +1353,22 @@ export class V18State {
 
         state:
           next
-
       });
-
     }
 
+
+    // ========================================================
+    // METHOD NOT ALLOWED
+    // ========================================================
 
     return json(
       {
         ok: false,
+
         error:
           "Method not allowed"
       },
       405
     );
-
   }
-
 }
