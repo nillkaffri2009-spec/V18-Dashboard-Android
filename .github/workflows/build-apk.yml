@@ -5,7 +5,7 @@ on:
   push:
     paths:
       - ".github/workflows/build-apk.yml"
-      - "V18_GOOGLE_SHEETS_FINAL_FIXED.zip"
+      - "V18_KUNLIK_DAVOMAD_PC_MONITOR_PHONE_FIXED.zip"
 
 jobs:
   build:
@@ -23,21 +23,42 @@ jobs:
 
       - name: Extract V18
         run: |
-          mkdir -p web
-          unzip -o V18_GOOGLE_SHEETS_FINAL_FIXED.zip -d extracted
-          cp -r extracted/v18/* web/
+          rm -rf extracted web
+          mkdir -p extracted web
+          unzip -o V18_KUNLIK_DAVOMAD_PC_MONITOR_PHONE_FIXED.zip -d extracted
+
+          if [ -f "extracted/index.html" ]; then
+            cp -r extracted/. web/
+          elif [ -f "extracted/v18/index.html" ]; then
+            cp -r extracted/v18/. web/
+          else
+            INDEX_FILE=$(find extracted -type f -name "index.html" | head -n 1)
+
+            if [ -z "$INDEX_FILE" ]; then
+              echo "ERROR: index.html not found in ZIP"
+              find extracted -maxdepth 3 -type f | head -100
+              exit 1
+            fi
+
+            WEB_DIR=$(dirname "$INDEX_FILE")
+            cp -r "$WEB_DIR"/. web/
+          fi
+
+          echo "=== WEB FILES ==="
+          ls -la web
+
+          test -f web/index.html || {
+            echo "ERROR: web/index.html missing"
+            exit 1
+          }
 
       - name: Create Android project
         run: |
           mkdir -p app/src/main/java/com/v18/dashboard
           mkdir -p app/src/main/assets
-          mkdir -p app/src/main/res/mipmap-hdpi
-          mkdir -p app/src/main/res/mipmap-mdpi
-          mkdir -p app/src/main/res/mipmap-xhdpi
-          mkdir -p app/src/main/res/mipmap-xxhdpi
-          mkdir -p app/src/main/res/mipmap-xxxhdpi
+          mkdir -p app/src/main/res/values
 
-          cp -r web/* app/src/main/assets/
+          cp -r web/. app/src/main/assets/
 
           cat > settings.gradle <<'EOF'
           pluginManagement {
@@ -84,8 +105,8 @@ jobs:
                   applicationId 'com.v18.dashboard'
                   minSdk 23
                   targetSdk 35
-                  versionCode 18
-                  versionName '18.0'
+                  versionCode 19
+                  versionName '18.1'
               }
           }
           EOF
@@ -94,6 +115,7 @@ jobs:
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
               <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
               <application
                   android:theme="@style/AppTheme"
@@ -104,7 +126,7 @@ jobs:
 
                   <activity
                       android:name=".MainActivity"
-                      android:screenOrientation="portrait"
+                      android:configChanges="orientation|screenSize"
                       android:exported="true">
 
                       <intent-filter>
@@ -113,13 +135,9 @@ jobs:
                       </intent-filter>
 
                   </activity>
-
               </application>
-
           </manifest>
           EOF
-
-          mkdir -p app/src/main/res/values
 
           cat > app/src/main/res/values/styles.xml <<'EOF'
           <resources>
@@ -170,11 +188,19 @@ jobs:
 
               @Override
               public void onBackPressed() {
-                  if (webView.canGoBack()) {
+                  if (webView != null && webView.canGoBack()) {
                       webView.goBack();
                   } else {
                       super.onBackPressed();
                   }
+              }
+
+              @Override
+              protected void onDestroy() {
+                  if (webView != null) {
+                      webView.destroy();
+                  }
+                  super.onDestroy();
               }
           }
           EOF
@@ -190,5 +216,6 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: V18-Dashboard-APK
+          name: V18-KUNLIK-DAVOMAD-APK
           path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
