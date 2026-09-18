@@ -1,5 +1,3 @@
-name: Build V18 Dashboard APK
-
 on:
   workflow_dispatch:
   push:
@@ -99,8 +97,8 @@ jobs:
                   minSdk 23
                   targetSdk 35
 
-                  versionCode 21
-                  versionName '18.3'
+                  versionCode 22
+                  versionName '18.4'
               }
           }
           EOF
@@ -198,8 +196,18 @@ jobs:
               // =================================================
               // V18 SERVER
               // =================================================
-              private static final String SERVER_URL =
-                      "http://10.142.29.9:5000/phone?mode=phone";
+              private static final String DEFAULT_SERVER =
+                      "http://10.142.29.9:5000";
+
+              private String serverUrl() {
+                  android.content.SharedPreferences prefs =
+                          getSharedPreferences("v18", MODE_PRIVATE);
+                  String base = prefs.getString("server_url", DEFAULT_SERVER);
+                  if (base.endsWith("/")) {
+                      base = base.substring(0, base.length() - 1);
+                  }
+                  return base + "/phone?mode=phone";
+              }
 
               @Override
               protected void onCreate(Bundle savedInstanceState) {
@@ -278,7 +286,7 @@ jobs:
                   String oldUA = settings.getUserAgentString();
 
                   settings.setUserAgentString(
-                          oldUA + " V18DashboardPhone/18.3"
+                          oldUA + " V18DashboardPhone/18.4"
                   );
 
                   webView.setWebChromeClient(
@@ -297,7 +305,7 @@ jobs:
 
                   if (webView != null) {
 
-                      webView.loadUrl(SERVER_URL);
+                      webView.loadUrl(serverUrl());
 
                   }
               }
@@ -415,8 +423,7 @@ jobs:
                               "1. Компьютер ёқилган бўлсин.\n" +
                               "2. server.py ишлаб турсин.\n" +
                               "3. Телефон ва компьютер бир тармоқда бўлсин.\n" +
-                              "4. Сервер манзили:\n" +
-                              "10.142.29.9:5000\n\n" +
+                              "4. Қуйида server.py кўрсатган PHONE манзилини киритинг.\n\n" +
                               "Сўнг ҚАЙТА УЛАНИШ тугмасини босинг."
                       );
 
@@ -429,6 +436,29 @@ jobs:
                       info.setGravity(
                               Gravity.CENTER
                       );
+
+                      android.widget.EditText serverInput =
+                              new android.widget.EditText(this);
+                      serverInput.setHint("http://10.142.29.9:5000");
+                      serverInput.setSingleLine(true);
+                      serverInput.setText(
+                              getSharedPreferences("v18", MODE_PRIVATE)
+                                      .getString("server_url", DEFAULT_SERVER)
+                      );
+
+                      Button saveServer = new Button(this);
+                      saveServer.setText("СЕРВЕР МАНЗИЛИНИ САҚЛАШ");
+                      saveServer.setOnClickListener(v -> {
+                          String value = serverInput.getText().toString().trim();
+                          if (!value.isEmpty()) {
+                              getSharedPreferences("v18", MODE_PRIVATE)
+                                      .edit()
+                                      .putString("server_url", value)
+                                      .apply();
+                              createWebView();
+                              loadDashboard();
+                          }
+                      });
 
                       Button retry =
                               new Button(this);
@@ -450,7 +480,8 @@ jobs:
                       layout.addView(title);
 
                       layout.addView(info);
-
+                      layout.addView(serverInput);
+                      layout.addView(saveServer);
                       layout.addView(retry);
 
                       setContentView(layout);
@@ -571,7 +602,7 @@ jobs:
 
           cp \
             app/build/outputs/apk/debug/app-debug.apk \
-            release/V18-Dashboard-18.3-PHONE-LIVE.apk
+            release/V18-Dashboard-18.4-PHONE-LIVE.apk
 
           echo "=== RELEASE APK ==="
 
@@ -583,7 +614,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: V18-DASHBOARD-18.3-PHONE-LIVE
-          path: release/V18-Dashboard-18.3-PHONE-LIVE.apk
+          name: V18-DASHBOARD-18.4-PHONE-LIVE
+          path: release/V18-Dashboard-18.4-PHONE-LIVE.apk
           if-no-files-found: error
           retention-days: 30
