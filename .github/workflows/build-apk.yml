@@ -1,12 +1,11 @@
 name: Build V18 Dashboard APK
 
-on:
+"on":
   workflow_dispatch:
   push:
     paths:
       - ".github/workflows/build-apk.yml"
       - "V18_KUNLIK_DAVOMAD_PC_MONITOR_PHONE_FIXED.zip"
-
 jobs:
   build:
     runs-on: ubuntu-latest
