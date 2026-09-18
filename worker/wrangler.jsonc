@@ -12,10 +12,12 @@
     ]
   },
 
-  "exports": {
-    "V18State": {
-      "type": "durable-object",
-      "storage": "sqlite"
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "V18State"
+      ]
     }
-  }
+  ]
 }
