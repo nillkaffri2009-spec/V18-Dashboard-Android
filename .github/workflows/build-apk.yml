@@ -5,88 +5,44 @@ on:
   push:
     paths:
       - ".github/workflows/build-apk.yml"
-      - "V18_ASOSIY_DESIGN_2_CONTROL_SYNC_FIXED.zip"
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
+      # =========================================================
+      # 1. REPOSITORY
+      # =========================================================
       - name: Checkout
         uses: actions/checkout@v4
 
+      # =========================================================
+      # 2. JAVA 17
+      # =========================================================
       - name: Set up Java
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
 
-      - name: Check source ZIP
-        run: |
-          echo "=== REPOSITORY FILES ==="
-          ls -lah
-
-          if [ ! -f "V18_ASOSIY_DESIGN_2_CONTROL_SYNC_FIXED.zip" ]; then
-            echo "ERROR: V18_ASOSIY_DESIGN_2_CONTROL_SYNC_FIXED.zip not found"
-            exit 1
-          fi
-
-          echo "Source ZIP found."
-
-      - name: Extract V18
-        run: |
-          rm -rf extracted web
-          mkdir -p extracted web
-
-          unzip -o V18_ASOSIY_DESIGN_2_CONTROL_SYNC_FIXED.zip -d extracted
-
-          echo "=== EXTRACTED FILES ==="
-          find extracted -maxdepth 4 -type f | head -200
-
-          if [ -f "extracted/index.html" ]; then
-            WEB_DIR="extracted"
-
-          elif [ -f "extracted/v18/index.html" ]; then
-            WEB_DIR="extracted/v18"
-
-          elif [ -f "extracted/web/index.html" ]; then
-            WEB_DIR="extracted/web"
-
-          else
-            INDEX_FILE=$(find extracted -type f -name "index.html" | head -n 1)
-
-            if [ -z "$INDEX_FILE" ]; then
-              echo "ERROR: index.html not found inside ZIP"
-              exit 1
-            fi
-
-            WEB_DIR=$(dirname "$INDEX_FILE")
-          fi
-
-          echo "Dashboard directory: $WEB_DIR"
-
-          cp -r "$WEB_DIR"/. web/
-
-          echo "=== WEB FILES ==="
-          find web -maxdepth 3 -type f | head -200
-
-          if [ ! -f "web/index.html" ]; then
-            echo "ERROR: web/index.html missing"
-            exit 1
-          fi
-
-          echo "Dashboard web package OK."
-
+      # =========================================================
+      # 3. ANDROID PROJECT
+      # =========================================================
       - name: Create Android project
         run: |
+          echo "=== Creating V18 Phone LIVE Android project ==="
+
           rm -rf app
+          rm -rf release
 
           mkdir -p app/src/main/java/com/v18/dashboard
-          mkdir -p app/src/main/assets
           mkdir -p app/src/main/res/values
+          mkdir -p release
 
-          cp -r web/. app/src/main/assets/
-
+          # -----------------------------------------------------
+          # settings.gradle
+          # -----------------------------------------------------
           cat > settings.gradle <<'EOF'
           pluginManagement {
               repositories {
@@ -108,18 +64,27 @@ jobs:
           include(":app")
           EOF
 
+          # -----------------------------------------------------
+          # Root build.gradle
+          # -----------------------------------------------------
           cat > build.gradle <<'EOF'
           plugins {
               id 'com.android.application' version '8.6.1' apply false
           }
           EOF
 
+          # -----------------------------------------------------
+          # gradle.properties
+          # -----------------------------------------------------
           cat > gradle.properties <<'EOF'
           org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
           android.useAndroidX=true
           android.nonTransitiveRClass=true
           EOF
 
+          # -----------------------------------------------------
+          # app/build.gradle
+          # -----------------------------------------------------
           cat > app/build.gradle <<'EOF'
           plugins {
               id 'com.android.application'
@@ -133,12 +98,16 @@ jobs:
                   applicationId 'com.v18.dashboard'
                   minSdk 23
                   targetSdk 35
-                  versionCode 20
-                  versionName '18.2'
+
+                  versionCode 21
+                  versionName '18.3'
               }
           }
           EOF
 
+          # -----------------------------------------------------
+          # AndroidManifest.xml
+          # -----------------------------------------------------
           cat > app/src/main/AndroidManifest.xml <<'EOF'
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
@@ -156,6 +125,7 @@ jobs:
                   <activity
                       android:name=".MainActivity"
                       android:configChanges="orientation|screenSize|keyboardHidden"
+                      android:screenOrientation="unspecified"
                       android:exported="true">
 
                       <intent-filter>
@@ -170,100 +140,380 @@ jobs:
           </manifest>
           EOF
 
+          # -----------------------------------------------------
+          # styles.xml
+          # -----------------------------------------------------
           cat > app/src/main/res/values/styles.xml <<'EOF'
           <resources>
-              <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+
+              <style
+                  name="AppTheme"
+                  parent="android:style/Theme.Material.Light.NoActionBar">
+
                   <item name="android:fontFamily">sans</item>
+
                   <item name="android:colorAccent">#1976D2</item>
+
                   <item name="android:windowLightStatusBar">true</item>
+
                   <item name="android:statusBarColor">#FFFFFF</item>
+
                   <item name="android:navigationBarColor">#FFFFFF</item>
+
                   <item name="android:windowActionModeOverlay">true</item>
+
+                  <item name="android:windowNoTitle">true</item>
+
               </style>
+
           </resources>
           EOF
 
+          # =====================================================
+          # MainActivity.java
+          # =====================================================
           cat > app/src/main/java/com/v18/dashboard/MainActivity.java <<'EOF'
           package com.v18.dashboard;
 
           import android.app.Activity;
+          import android.graphics.Bitmap;
           import android.os.Bundle;
+          import android.view.View;
           import android.webkit.WebChromeClient;
+          import android.webkit.WebResourceError;
+          import android.webkit.WebResourceRequest;
           import android.webkit.WebSettings;
           import android.webkit.WebView;
           import android.webkit.WebViewClient;
+          import android.widget.TextView;
+          import android.widget.LinearLayout;
+          import android.widget.Button;
+          import android.graphics.Color;
+          import android.view.Gravity;
 
           public class MainActivity extends Activity {
 
               private WebView webView;
 
+              // =================================================
+              // V18 SERVER
+              // =================================================
+              private static final String SERVER_URL =
+                      "http://10.142.29.9:5000/phone?mode=phone";
+
               @Override
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
 
+                  createWebView();
+
+                  if (savedInstanceState == null) {
+
+                      loadDashboard();
+
+                  } else {
+
+                      boolean restored =
+                              webView.restoreState(savedInstanceState) != null;
+
+                      if (!restored) {
+                          loadDashboard();
+                      }
+                  }
+              }
+
+              // =================================================
+              // CREATE WEBVIEW
+              // =================================================
+              private void createWebView() {
+
                   webView = new WebView(this);
+
                   setContentView(webView);
 
                   WebSettings settings = webView.getSettings();
 
+                  // JavaScript
                   settings.setJavaScriptEnabled(true);
+
+                  // HTML5 Local Storage
                   settings.setDomStorageEnabled(true);
+
+                  // Database
                   settings.setDatabaseEnabled(true);
 
+                  // Network
+                  settings.setBlockNetworkLoads(false);
+
+                  // File/content
                   settings.setAllowFileAccess(true);
                   settings.setAllowContentAccess(true);
 
-                  settings.setBuiltInZoomControls(false);
-                  settings.setDisplayZoomControls(false);
-
+                  // Responsive dashboard
                   settings.setLoadWithOverviewMode(true);
                   settings.setUseWideViewPort(true);
 
+                  // Zoom
+                  settings.setSupportZoom(true);
+                  settings.setBuiltInZoomControls(true);
+                  settings.setDisplayZoomControls(false);
+
+                  // JS windows
                   settings.setJavaScriptCanOpenWindowsAutomatically(true);
 
-                  settings.setMixedContentMode(
-                      WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                  // Media
+                  settings.setMediaPlaybackRequiresUserGesture(false);
+
+                  // Cache
+                  settings.setCacheMode(
+                          WebSettings.LOAD_DEFAULT
                   );
 
-                  webView.setWebViewClient(new WebViewClient());
-                  webView.setWebChromeClient(new WebChromeClient());
+                  // HTTP + HTTPS mixed content
+                  settings.setMixedContentMode(
+                          WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                  );
 
-                  if (savedInstanceState == null) {
-                      webView.loadUrl(
-                          "file:///android_asset/index.html?mode=phone"
+                  // User Agent marker
+                  String oldUA = settings.getUserAgentString();
+
+                  settings.setUserAgentString(
+                          oldUA + " V18DashboardPhone/18.3"
+                  );
+
+                  webView.setWebChromeClient(
+                          new WebChromeClient()
+                  );
+
+                  webView.setWebViewClient(
+                          new DashboardWebViewClient()
+                  );
+              }
+
+              // =================================================
+              // LOAD DASHBOARD
+              // =================================================
+              private void loadDashboard() {
+
+                  if (webView != null) {
+
+                      webView.loadUrl(SERVER_URL);
+
+                  }
+              }
+
+              // =================================================
+              // WEBVIEW CLIENT
+              // =================================================
+              private class DashboardWebViewClient
+                      extends WebViewClient {
+
+                  @Override
+                  public boolean shouldOverrideUrlLoading(
+                          WebView view,
+                          WebResourceRequest request) {
+
+                      return false;
+                  }
+
+                  @Override
+                  public void onPageStarted(
+                          WebView view,
+                          String url,
+                          Bitmap favicon) {
+
+                      super.onPageStarted(
+                              view,
+                              url,
+                              favicon
                       );
                   }
-              }
 
-              @Override
-              protected void onSaveInstanceState(Bundle outState) {
-                  webView.saveState(outState);
-                  super.onSaveInstanceState(outState);
-              }
+                  @Override
+                  public void onPageFinished(
+                          WebView view,
+                          String url) {
 
-              @Override
-              protected void onRestoreInstanceState(Bundle savedInstanceState) {
-                  super.onRestoreInstanceState(savedInstanceState);
-                  webView.restoreState(savedInstanceState);
-              }
+                      super.onPageFinished(
+                              view,
+                              url
+                      );
+                  }
 
-              @Override
-              public void onBackPressed() {
-                  if (webView != null && webView.canGoBack()) {
-                      webView.goBack();
-                  } else {
-                      super.onBackPressed();
+                  @Override
+                  public void onReceivedError(
+                          WebView view,
+                          WebResourceRequest request,
+                          WebResourceError error) {
+
+                      super.onReceivedError(
+                              view,
+                              request,
+                              error
+                      );
+
+                      if (request.isForMainFrame()) {
+
+                          showConnectionError();
+
+                      }
                   }
               }
 
+              // =================================================
+              // CONNECTION ERROR SCREEN
+              // =================================================
+              private void showConnectionError() {
+
+                  runOnUiThread(() -> {
+
+                      LinearLayout layout =
+                              new LinearLayout(this);
+
+                      layout.setOrientation(
+                              LinearLayout.VERTICAL
+                      );
+
+                      layout.setGravity(
+                              Gravity.CENTER
+                      );
+
+                      layout.setPadding(
+                              50,
+                              50,
+                              50,
+                              50
+                      );
+
+                      layout.setBackgroundColor(
+                              Color.WHITE
+                      );
+
+                      TextView title =
+                              new TextView(this);
+
+                      title.setText(
+                              "V18 Dashboard серверига уланиб бўлмади"
+                      );
+
+                      title.setTextSize(24);
+
+                      title.setTextColor(
+                              Color.rgb(20, 58, 95)
+                      );
+
+                      title.setGravity(
+                              Gravity.CENTER
+                      );
+
+                      TextView info =
+                              new TextView(this);
+
+                      info.setText(
+                              "\nТелефон компьютер серверини топа олмади.\n\n" +
+                              "Текширинг:\n\n" +
+                              "1. Компьютер ёқилган бўлсин.\n" +
+                              "2. server.py ишлаб турсин.\n" +
+                              "3. Телефон ва компьютер бир тармоқда бўлсин.\n" +
+                              "4. Сервер манзили:\n" +
+                              "10.142.29.9:5000\n\n" +
+                              "Сўнг ҚАЙТА УЛАНИШ тугмасини босинг."
+                      );
+
+                      info.setTextSize(18);
+
+                      info.setTextColor(
+                              Color.DKGRAY
+                      );
+
+                      info.setGravity(
+                              Gravity.CENTER
+                      );
+
+                      Button retry =
+                              new Button(this);
+
+                      retry.setText(
+                              "ҚАЙТА УЛАНИШ"
+                      );
+
+                      retry.setTextSize(18);
+
+                      retry.setOnClickListener(v -> {
+
+                          createWebView();
+
+                          loadDashboard();
+
+                      });
+
+                      layout.addView(title);
+
+                      layout.addView(info);
+
+                      layout.addView(retry);
+
+                      setContentView(layout);
+
+                  });
+              }
+
+              // =================================================
+              // SAVE STATE
+              // =================================================
+              @Override
+              protected void onSaveInstanceState(
+                      Bundle outState) {
+
+                  if (webView != null) {
+
+                      webView.saveState(
+                              outState
+                      );
+
+                  }
+
+                  super.onSaveInstanceState(
+                          outState
+                  );
+              }
+
+              // =================================================
+              // BACK BUTTON
+              // =================================================
+              @Override
+              public void onBackPressed() {
+
+                  if (webView != null &&
+                          webView.canGoBack()) {
+
+                      webView.goBack();
+
+                  } else {
+
+                      super.onBackPressed();
+
+                  }
+              }
+
+              // =================================================
+              // DESTROY
+              // =================================================
               @Override
               protected void onDestroy() {
+
                   if (webView != null) {
+
                       webView.stopLoading();
+
                       webView.clearHistory();
+
                       webView.removeAllViews();
+
                       webView.destroy();
+
                       webView = null;
+
                   }
 
                   super.onDestroy();
@@ -271,38 +521,69 @@ jobs:
           }
           EOF
 
-          echo "Android project created."
+          echo "======================================"
+          echo "ANDROID PROJECT CREATED"
+          echo "SERVER:"
+          echo "http://10.142.29.9:5000/phone?mode=phone"
+          echo "======================================"
 
+      # =========================================================
+      # 4. GRADLE
+      # =========================================================
       - name: Install Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.7"
 
+      # =========================================================
+      # 5. BUILD APK
+      # =========================================================
       - name: Build APK
         run: |
+          echo "=== BUILDING APK ==="
+
           gradle clean assembleDebug --no-daemon
 
           echo "=== APK OUTPUT ==="
-          find app/build/outputs/apk -type f -name "*.apk" -ls
 
-          test -f app/build/outputs/apk/debug/app-debug.apk || {
+          find app/build/outputs/apk \
+            -type f \
+            -name "*.apk" \
+            -ls
+
+          if [ ! -f \
+            "app/build/outputs/apk/debug/app-debug.apk" ]; then
+
             echo "ERROR: APK was not created"
-            exit 1
-          }
 
+            exit 1
+
+          fi
+
+          echo "APK build successful."
+
+      # =========================================================
+      # 6. RENAME APK
+      # =========================================================
       - name: Rename APK
         run: |
           mkdir -p release
 
-          cp app/build/outputs/apk/debug/app-debug.apk \
-             release/V18-Dashboard-18.2-PHONE-SYNC.apk
+          cp \
+            app/build/outputs/apk/debug/app-debug.apk \
+            release/V18-Dashboard-18.3-PHONE-LIVE.apk
+
+          echo "=== RELEASE APK ==="
 
           ls -lh release/
 
+      # =========================================================
+      # 7. UPLOAD APK
+      # =========================================================
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: V18-ASOSIY-DESIGN-2-PHONE-SYNC-APK
-          path: release/V18-Dashboard-18.2-PHONE-SYNC.apk
+          name: V18-DASHBOARD-18.3-PHONE-LIVE
+          path: release/V18-Dashboard-18.3-PHONE-LIVE.apk
           if-no-files-found: error
           retention-days: 30
