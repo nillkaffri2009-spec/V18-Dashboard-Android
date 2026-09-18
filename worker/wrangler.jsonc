@@ -1,0 +1,21 @@
+{
+  "name": "v18-dashboard-server",
+  "main": "worker.js",
+  "compatibility_date": "2026-09-18",
+
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "V18_STATE",
+        "class_name": "V18State"
+      }
+    ]
+  },
+
+  "exports": {
+    "V18State": {
+      "type": "durable-object",
+      "storage": "sqlite"
+    }
+  }
+}
