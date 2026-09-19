@@ -1,102 +1,95 @@
-                      info.setText(
-                              "\nInternet aloqasini tekshiring.\n\n" +
-                              "Bu APK kompyuter serveriga bog'liq emas. " +
-                              "U to'g'ridan-to'g'ri V18 Cloud serverga ulanadi.\n\n" +
-                              "Internet tiklangach QAYTA ULASH tugmasini bosing."
-                      );
-                      info.setTextSize(17);
-                      info.setTextColor(Color.DKGRAY);
-                      info.setGravity(Gravity.CENTER);
+name: Build V19.4 Cloud Phone APK
 
-                      Button retry = new Button(this);
-                      retry.setText("QAYTA ULASH");
-                      retry.setTextSize(17);
-                      retry.setOnClickListener(v -> {
-                          createWebView();
-                          loadDashboard();
-                      });
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/build-apk.yml"
 
-                      layout.addView(title);
-                      layout.addView(info);
-                      layout.addView(retry);
-                      setContentView(layout);
-                  });
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # =========================================================
+      # 1. REPOSITORY
+      # =========================================================
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # =========================================================
+      # 2. JAVA 17
+      # =========================================================
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # =========================================================
+      # 3. ANDROID PROJECT
+      # =========================================================
+      - name: Create Android project
+        run: |
+          echo "=== Creating V18 Phone LIVE Android project ==="
+
+          rm -rf app
+          rm -rf release
+
+          mkdir -p app/src/main/java/com/v18/dashboard
+          mkdir -p app/src/main/res/values
+          mkdir -p release
+
+          # -----------------------------------------------------
+          # settings.gradle
+          # -----------------------------------------------------
+          cat > settings.gradle <<'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
               }
+          }
 
-              @Override
-              protected void onSaveInstanceState(Bundle outState) {
-                  if (webView != null) webView.saveState(outState);
-                  super.onSaveInstanceState(outState);
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
               }
+          }
 
-              @Override
-              public void onBackPressed() {
-                  if (webView != null && webView.canGoBack()) {
-                      webView.goBack();
-                  } else {
-                      super.onBackPressed();
-                  }
-              }
+          rootProject.name = "V18Dashboard"
+          include(":app")
+          EOF
 
-              @Override
-              protected void onDestroy() {
-                  if (webView != null) {
-                      webView.stopLoading();
-                      webView.removeAllViews();
-                      webView.destroy();
-                      webView = null;
-                  }
-                  super.onDestroy();
-              }
+          # -----------------------------------------------------
+          # Root build.gradle
+          # -----------------------------------------------------
+          cat > build.gradle <<'EOF'
+          plugins {
+              id 'com.android.application' version '8.6.1' apply false
           }
           EOF
 
-          echo "Android project created for:"
-          echo "https://v18-dashboard-server.nill-kaffri-2009.workers.dev/phone?mode=phone"
-
-      - name: Set up Gradle 8.7
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "8.7"
-
-      - name: Build APK
-        shell: bash
-        run: |
-          set -e
-          gradle clean assembleDebug --no-daemon
-
-          APK="app/build/outputs/apk/debug/app-debug.apk"
-          test -f "$APK"
-
-          mkdir -p release
-          cp "$APK" "release/V18-Dashboard-V19.4-CLOUD-PHONE.apk"
-          sha256sum "release/V18-Dashboard-V19.4-CLOUD-PHONE.apk" \
-            > "release/V18-Dashboard-V19.4-CLOUD-PHONE.sha256.txt"
-
-          cat > release/BUILD-INFO.txt <<'EOF'
-          V18 Dashboard Android APK
-          Version: 19.4-cloud
-          Mode: PHONE ONLY
-          Server: Cloudflare V18 Dashboard Cloud Server
-          PC server required: NO
-          URL: https://v18-dashboard-server.nill-kaffri-2009.workers.dev/phone?mode=phone
-
-          Notes:
-          - Requires Internet connection.
-          - APK navigation is locked to the V18 phone dashboard host/mode.
-          - If Android reports an app-signature conflict with an older debug APK,
-            uninstall the older APK first, then install this build.
+          # -----------------------------------------------------
+          # gradle.properties
+          # -----------------------------------------------------
+          cat > gradle.properties <<'EOF'
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          android.useAndroidX=true
+          android.nonTransitiveRClass=true
           EOF
 
-          ls -lh release/
+          # -----------------------------------------------------
+          # app/build.gradle
+          # -----------------------------------------------------
+          cat > app/build.gradle <<'EOF'
+          plugins {
+              id 'com.android.application'
+          }
 
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: V18-DASHBOARD-V19.4-CLOUD-PHONE
-          path: |
-            release/V18-Dashboard-V19.4-CLOUD-PHONE.apk
-            release/V18-Dashboard-V19.4-CLOUD-PHONE.sha256.txt
-            release/BUILD-INFO.txt
-          if-no-files-found: error
-          retention-days: 30
+          android {
+              namespace 'com.v18.dashboard'
+              compileSdk 35
