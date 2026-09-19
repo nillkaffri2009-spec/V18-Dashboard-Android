@@ -81,7 +81,7 @@
   <div class="device-control">
     <label for="deviceRole">Qurilma</label><select id="deviceRole"><option value="computer">Admin-kompyuter</option><option value="phone">Telefon</option><option value="monitor">32″ monitor</option></select>
     <button id="claim" class="primary">Kompyuterdan boshqarish</button><button id="release" hidden>Kompyuterga qaytarish</button>
-    <a id="monitorLink" href="/?mode=monitor" target="_blank" rel="noopener">Monitorni ochish ↗</a>
+    <a id="monitorLink" href="/monitor" target="_blank" rel="noopener">Monitorni ochish ↗</a>
   </div>
 </div>
 <div class="filter-strip" id="globalFilters">
@@ -94,7 +94,7 @@
 <dialog id="settingsDialog">
   <div class="dialog-top"><h2>Boshqaruv va ulanish</h2><button id="closeSettings" aria-label="Yopish">×</button></div>
   <p id="deviceHelp">Telefon va monitorda shu manzilni o‘z ChatGPT hisobingiz bilan oching. Qurilma turini tanlang va boshqaruv tugmasini bosing.</p>
-  <div class="settings-links"><a href="/?mode=computer" target="_blank" rel="noopener">Admin-kompyuter ↗</a><a href="/?mode=phone" target="_blank" rel="noopener">Telefon ↗</a><a href="/?mode=monitor" target="_blank" rel="noopener">32″ monitor ↗</a></div>
+  <div class="settings-links"><a href="/admin" target="_blank" rel="noopener">Admin-kompyuter ↗</a><a href="/phone" target="_blank" rel="noopener">Telefon ↗</a><a href="/monitor" target="_blank" rel="noopener">32″ monitor ↗</a></div>
   <p><b>Ma’lumot manbasi: Google Sheets.</b> Olti bo‘lim varag‘i avtomatik o‘qiladi. Jadvaldagi o‘zgarishlar sahifani qayta ochmasdan yangilanadi.</p>
   <p>Telefon aloqasi uzilsa, taxminan 25 soniyadan keyin boshqaruv kompyuterga qaytadi. Faol qurilmadagi filtrlar, bo‘lim va xodimlar ro‘yxati monitorga uzatiladi.</p>
   <p><b>KPI:</b> tanlangan kundagi davomat. Formula: ishdagilar ÷ (ishdagilar + yo‘qlar) × 100. Dam olish kunidagi xodimlar hisobga kirmaydi.</p>

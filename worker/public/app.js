@@ -107,33 +107,60 @@ async function flush(){
 async function action(action){if(busy)return;busy=true;uiPermissions();try{const data=await request({action,epoch:remote?.epoch});dirty=false;accept(data,true);notify(action==='release'?'Boshqaruv kompyuterga qaytarildi.':'Boshqaruv shu qurilmaga o‘tdi.');}catch(e){notify(e.message);if(!e.status)connected=false;}finally{busy=false;uiPermissions();}}
 $('claim').addEventListener('click',()=>action('claim'));$('release').addEventListener('click',()=>action('release'));
 async function poll(){if(pollBusy||busy)return;pollBusy=true;const currentRole=role;try{let data=await request();if(currentRole===role)accept(data);if(role==='computer'&&data.source==='computer'&&!active){data=await request({action:'claim',epoch:data.epoch});if(currentRole===role)accept(data,true);}if(active&&role==='phone'&&Date.now()-lastHeartbeat>5000){lastHeartbeat=Date.now();const data=await request({action:'heartbeat',epoch:remote.epoch});if(currentRole===role)accept(data);}}catch(e){connected=false;active=false;uiPermissions();}finally{pollBusy=false;}}
-function gvizValue(cell){return cell?.v??cell?.f??null;}
-function gvizNumber(value){const n=Number(String(value??'').replace(',','.'));return Number.isFinite(n)?n:0;}
-function parseGviz(text){const a=text.indexOf('{'),b=text.lastIndexOf('}');if(a<0||b<a)throw Error('Google Sheets javobi noto‘g‘ri.');return JSON.parse(text.slice(a,b+1));}
-function normalizeGviz(obj){return (obj?.table?.rows||[]).map(row=>{const c=(row?.c||[]).map(gvizValue),d=String(c[2]??'').trim(),e=String(c[4]??'').trim(),m=String(c[1]??'').trim();if(!/^\d+$/.test(d)||!e||!m)return null;return {m,d,e,tab:String(c[3]??''),s:String(c[5]??''),g:gvizNumber(c[6]),j:gvizNumber(c[9]),x:gvizNumber(c[12]),day:Array.from({length:31},(_,i)=>c[i+14]??null)};}).filter(Boolean);}
-async function fetchDirectGoogleData(){const parts=await Promise.all(DEPTS.map(async d=>{const u=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(d.sheet)}&tq=${encodeURIComponent('select *')}`;const r=await fetch(u,{cache:'no-store',signal:AbortSignal.timeout(12000)});if(!r.ok)throw Error(`${d.name}: ${r.status}`);return normalizeGviz(parseGviz(await r.text()));}));const records=parts.flat();if(!records.length)throw Error('Google Sheets ma’lumoti topilmadi.');return {records,refreshedAt:new Date().toISOString(),source:'google-sheets-direct'};}
 async function syncData(){
  if(dataBusy)return;dataBusy=true;
  try{
-  let data;
+  let data=null;
+  let live=false;
+
   try{
-   const response=await fetch('/api/google-data',{cache:'no-store',signal:AbortSignal.timeout(15000)});
-   data=await response.json();
-   if(!response.ok||!Array.isArray(data.records)||!data.records.length)throw Error(data.error||'Cloud Google Sheets ulanish xatosi.');
-  }catch(cloudError){
-   try{data=await fetchDirectGoogleData();}
-   catch{
-    const response=await fetch('/api/data',{cache:'no-store',signal:AbortSignal.timeout(12000)});
-    data=await response.json();
-    if(!response.ok)throw Error(data.error||'Server ulanish xatosi.');
+   const response=await fetch('/api/google-data',{cache:'no-store',signal:AbortSignal.timeout(18000)});
+   const candidate=await response.json();
+   if(!response.ok||!Array.isArray(candidate.records)||!candidate.records.length){
+    throw Error(candidate.error||'Cloud Google Sheets ulanish xatosi.');
    }
+   data=candidate;
+   live=true;
+  }catch(cloudError){
+   const response=await fetch('/api/data',{cache:'no-store',signal:AbortSignal.timeout(12000)});
+   const candidate=await response.json();
+   if(!response.ok||!Array.isArray(candidate.records)||!candidate.records.length){
+    throw Error(candidate.error||cloudError.message||'Server ulanish xatosi.');
+   }
+   data=candidate;
+   live=false;
   }
-  setLiveRecords(data.records);dataOnline=true;
-  const stamp=new Date(data.refreshedAt).toLocaleTimeString('uz-UZ',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  $('dataStatus').textContent=`Google Sheets: ulangan · ${stamp}`;$('dataStatus').className='status live';
-  $('sourceTag').textContent='GOOGLE SHEETS LIVE';$('sourceTag').className='live-tag';render();
+
+  setLiveRecords(data.records);
+  dataOnline=true;
+
+  const stamp=data.refreshedAt
+   ? new Date(data.refreshedAt).toLocaleTimeString('uz-UZ',{hour:'2-digit',minute:'2-digit',second:'2-digit'})
+   : '';
+
+  if(live){
+   $('dataStatus').textContent=`Google Sheets: ulangan${stamp?' · '+stamp:''}`;
+   $('dataStatus').className='status live';
+   $('sourceTag').textContent='GOOGLE SHEETS LIVE';
+   $('sourceTag').className='live-tag';
+  }else{
+   $('dataStatus').textContent=`Google Sheets vaqtincha ulanmagan · zaxira ma’lumot${stamp?' · '+stamp:''}`;
+   $('dataStatus').className='status offline';
+   $('sourceTag').textContent='ZAXIRA MA’LUMOT';
+   $('sourceTag').className='offline';
+  }
+
+  render();
  }
- catch(e){const hadData=dataOnline;dataOnline=false;$('dataStatus').textContent='Google Sheets: ulanish xatosi · '+(hadData?'oxirgi olingan ma’lumot saqlandi':'qayta urinilmoqda');$('dataStatus').className='status offline';$('sourceTag').textContent='YANGILANISH TO‘XTADI';$('sourceTag').className='offline';if(!$('total').textContent||$('total').textContent==='—')render();}
+ catch(e){
+  const hadData=dataOnline;
+  dataOnline=false;
+  $('dataStatus').textContent='Google Sheets: ulanish xatosi · '+(hadData?'oxirgi olingan ma’lumot saqlandi':'qayta urinilmoqda');
+  $('dataStatus').className='status offline';
+  $('sourceTag').textContent=hadData?'OXIRGI MA’LUMOT':'YANGILANISH TO‘XTADI';
+  $('sourceTag').className='offline';
+  if(!$('total').textContent||$('total').textContent==='—')render();
+ }
  finally{dataBusy=false;}
 }
 window.addEventListener('online',()=>void poll());document.addEventListener('visibilitychange',()=>{if(!document.hidden)void poll();});

@@ -4,7 +4,7 @@
 // Google Sheets -> Cloudflare Worker -> Admin / Phone / Monitor
 // ============================================================
 
-const VERSION = "19.0-cloud";
+const VERSION = "19.1-cloud";
 const SPREADSHEET_ID = "1IWyUdorge58MbvpNlB5Z08Rawm8AdoeHinxgjiFktF4";
 
 const CORS_HEADERS = {
@@ -15,7 +15,7 @@ const CORS_HEADERS = {
   "Access-Control-Max-Age": "86400",
 };
 
-const APP_ROUTES = new Set(["/", "/admin", "/monitor", "/phone", "/tv"]);
+const APP_ROUTES = new Set(["/", "/index.html", "/admin", "/monitor", "/phone", "/tv"]);
 
 const SHEETS = [
   {
@@ -184,7 +184,7 @@ function normalizeGviz(obj) {
     .filter(Boolean);
 }
 
-async function fetchSheetByName(name) {
+async function fetchSheetByName(name, expectedCode) {
   const url =
     `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq` +
     `?tqx=out:json&sheet=${encodeURIComponent(name)}` +
@@ -201,10 +201,22 @@ async function fetchSheetByName(name) {
 
   const text = await response.text();
   const parsed = parseGviz(text);
-  const records = normalizeGviz(parsed);
+  const allRecords = normalizeGviz(parsed);
+
+  // Google GViz can silently return the first sheet when a requested
+  // sheet name is wrong. Accept only rows that belong to this department.
+  const records = allRecords.filter(
+    (row) => String(row.d) === String(expectedCode)
+  );
 
   if (!records.length) {
-    throw new Error(`${name}: ma’lumot topilmadi`);
+    const seenCodes = [
+      ...new Set(allRecords.map((row) => String(row.d)).filter(Boolean)),
+    ];
+    throw new Error(
+      `${name}: ${expectedCode} bo‘limi topilmadi` +
+      (seenCodes.length ? ` (javobdagi kodlar: ${seenCodes.join(", ")})` : "")
+    );
   }
 
   return records;
@@ -215,7 +227,7 @@ async function fetchDepartment(sheet) {
 
   for (const name of sheet.names) {
     try {
-      const records = await fetchSheetByName(name);
+      const records = await fetchSheetByName(name, sheet.code);
       return { code: sheet.code, sheet: name, records };
     } catch (error) {
       errors.push(String(error?.message || error));
@@ -248,8 +260,18 @@ async function getGoogleData() {
     throw new Error("Google Sheets ma’lumotlari olinmadi: " + errors.join("; "));
   }
 
+  // Final safety: remove duplicate employee rows from alias/fallback requests.
+  const unique = [];
+  const seen = new Set();
+  for (const row of records) {
+    const key = `${row.m}|${row.d}|${row.tab}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(row);
+  }
+
   return {
-    records,
+    records: unique,
     refreshedAt: new Date().toISOString(),
     source: "google-sheets-cloud",
     loaded,
