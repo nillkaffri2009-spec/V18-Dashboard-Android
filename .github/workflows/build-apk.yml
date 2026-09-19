@@ -1,4 +1,4 @@
-name: Build V19.4 Cloud Phone APK
+name: Build V19.5 Cloud Phone APK - Auto Reconnect
 
 on:
   workflow_dispatch:
@@ -99,8 +99,8 @@ jobs:
                   minSdk 23
                   targetSdk 35
 
-                  versionCode 19400
-                  versionName '19.4-cloud'
+                  versionCode 19500
+                  versionName '19.5-cloud'
               }
           }
           EOF
@@ -178,6 +178,14 @@ jobs:
           import android.app.Activity;
           import android.graphics.Bitmap;
           import android.os.Bundle;
+          import android.os.Build;
+          import android.os.Handler;
+          import android.os.Looper;
+          import android.net.ConnectivityManager;
+          import android.net.Network;
+          import android.net.NetworkCapabilities;
+          import android.net.NetworkRequest;
+          import android.content.Context;
           import android.view.View;
           import android.webkit.WebChromeClient;
           import android.webkit.WebResourceError;
@@ -194,6 +202,9 @@ jobs:
           public class MainActivity extends Activity {
 
               private WebView webView;
+              private ConnectivityManager connectivityManager;
+              private ConnectivityManager.NetworkCallback networkCallback;
+              private final Handler reconnectHandler = new Handler(Looper.getMainLooper());
 
               // =================================================
               // V18 SERVER
@@ -206,6 +217,7 @@ jobs:
                   super.onCreate(savedInstanceState);
 
                   createWebView();
+                  registerNetworkMonitor();
 
                   if (savedInstanceState == null) {
 
@@ -278,7 +290,7 @@ jobs:
                   String oldUA = settings.getUserAgentString();
 
                   settings.setUserAgentString(
-                          oldUA + " V18DashboardPhone/19.4"
+                          oldUA + " V18DashboardPhone/19.5"
                   );
 
                   webView.setWebChromeClient(
@@ -361,6 +373,57 @@ jobs:
               }
 
               // =================================================
+              // NETWORK AUTO-RECONNECT
+              // Wi-Fi <-> Mobile almashganda sahifa avtomatik qayta ulanadi.
+              // =================================================
+              private void registerNetworkMonitor() {
+                  connectivityManager =
+                          (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+
+                  networkCallback = new ConnectivityManager.NetworkCallback() {
+                      @Override
+                      public void onAvailable(Network network) {
+                          reconnectHandler.postDelayed(() -> reconnectDashboard(), 900);
+                      }
+
+                      @Override
+                      public void onCapabilitiesChanged(
+                              Network network,
+                              NetworkCapabilities networkCapabilities) {
+
+                          if (networkCapabilities.hasCapability(
+                                  NetworkCapabilities.NET_CAPABILITY_INTERNET)) {
+                              reconnectHandler.postDelayed(() -> reconnectDashboard(), 500);
+                          }
+                      }
+                  };
+
+                  try {
+                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                          connectivityManager.registerDefaultNetworkCallback(networkCallback);
+                      } else {
+                          NetworkRequest request = new NetworkRequest.Builder()
+                                  .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                                  .build();
+                          connectivityManager.registerNetworkCallback(request, networkCallback);
+                      }
+                  } catch (Exception ignored) {
+                  }
+              }
+
+              private void reconnectDashboard() {
+                  if (webView == null) {
+                      createWebView();
+                  }
+
+                  String liveUrl = SERVER_URL
+                          + "&network_refresh="
+                          + System.currentTimeMillis();
+
+                  webView.loadUrl(liveUrl);
+              }
+
+              // =================================================
               // CONNECTION ERROR SCREEN
               // =================================================
               private void showConnectionError() {
@@ -412,9 +475,9 @@ jobs:
                       info.setText(
                               "\nCloud Dashboard серверига уланиб бўлмади.\n\n" +
                               "Текширинг:\n\n" +
-                              "1. Телефонда интернет ёқилган бўлсин.\n" +
-                              "2. Wi-Fi ёки мобил интернет ишласин.\n" +
-                              "3. Cloudflare сервери очиқ бўлсин.\n\n" +
+                              "1. Интернет уланган бўлсин.\n" +
+                              "2. Wi-Fi ёки мобил тармоқ ишласин.\n" +
+                              "3. Тармоқ алмашса APK автоматик қайта уланади.\n\n" +
                               "Сўнг ҚАЙТА УЛАНИШ тугмасини босинг."
                       );
 
@@ -441,7 +504,7 @@ jobs:
 
                           createWebView();
 
-                          loadDashboard();
+                          reconnectDashboard();
 
                       });
 
@@ -499,6 +562,15 @@ jobs:
               // =================================================
               @Override
               protected void onDestroy() {
+
+                  try {
+                      if (connectivityManager != null && networkCallback != null) {
+                          connectivityManager.unregisterNetworkCallback(networkCallback);
+                      }
+                  } catch (Exception ignored) {
+                  }
+
+                  reconnectHandler.removeCallbacksAndMessages(null);
 
                   if (webView != null) {
 
@@ -569,7 +641,7 @@ jobs:
 
           cp \
             app/build/outputs/apk/debug/app-debug.apk \
-            release/V18-Dashboard-V19.4-CLOUD-PHONE.apk
+            release/V18-Dashboard-V19.5-CLOUD-AUTORECONNECT.apk
 
           echo "=== RELEASE APK ==="
 
@@ -581,7 +653,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: V18-DASHBOARD-V19.4-CLOUD-PHONE
-          path: release/V18-Dashboard-V19.4-CLOUD-PHONE.apk
+          name: V18-DASHBOARD-V19.5-CLOUD-AUTORECONNECT
+          path: release/V18-Dashboard-V19.5-CLOUD-AUTORECONNECT.apk
           if-no-files-found: error
           retention-days: 30
