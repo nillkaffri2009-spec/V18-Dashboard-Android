@@ -4,7 +4,7 @@
 // Google Sheets -> Cloudflare Worker -> Admin / Phone / Monitor
 // ============================================================
 
-const VERSION = "19.1-cloud";
+const VERSION = "19.2-cloud";
 const SPREADSHEET_ID = "1IWyUdorge58MbvpNlB5Z08Rawm8AdoeHinxgjiFktF4";
 
 const CORS_HEADERS = {
@@ -160,28 +160,59 @@ function parseGviz(text) {
   return JSON.parse(text.slice(a, b + 1));
 }
 
-function normalizeGviz(obj) {
-  return (obj?.table?.rows || [])
-    .map((row) => {
-      const c = (row?.c || []).map(gvizValue);
-      const d = String(c[2] ?? "").trim();
-      const e = String(c[4] ?? "").trim();
-      const m = String(c[1] ?? "").trim();
-      if (!/^\d+$/.test(d) || !e || !m) return null;
+const MONTH_NAMES = new Set([
+  "Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun",
+  "Iyul", "Avgust", "Sentabr", "Oktabr", "Noyabr", "Dekabr",
+]);
 
-      return {
-        m,
-        d,
-        e,
-        tab: String(c[3] ?? ""),
-        s: String(c[5] ?? ""),
-        g: gvizNumber(c[6]),
-        j: gvizNumber(c[9]),
-        x: gvizNumber(c[12]),
-        day: Array.from({ length: 31 }, (_, i) => c[i + 14] ?? null),
-      };
-    })
-    .filter(Boolean);
+function normalizeGviz(obj, expectedCode) {
+  const rows = obj?.table?.rows || [];
+  const out = [];
+
+  // Google Sheetsdagi oy va bo‘lim kodi ko‘pincha blokning faqat
+  // birinchi qatorida yozilgan bo‘ladi. Keyingi xodim qatorlarida
+  // bu kataklar bo‘sh. Shuning uchun oldingi oy/kodni forward-fill qilamiz.
+  let currentMonth = "";
+  let currentDept = "";
+  let sawExpectedCode = false;
+
+  for (const row of rows) {
+    const c = (row?.c || []).map(gvizValue);
+
+    const rawMonth = String(c[1] ?? "").trim();
+    if (MONTH_NAMES.has(rawMonth)) currentMonth = rawMonth;
+
+    const rawDept = String(c[2] ?? "").trim();
+    if (/^\d{5}$/.test(rawDept)) {
+      currentDept = rawDept;
+      if (rawDept === String(expectedCode)) sawExpectedCode = true;
+    }
+
+    const tab = String(c[3] ?? "").trim();
+    const employee = String(c[4] ?? "").trim();
+    const shift = String(c[5] ?? "").trim();
+
+    // Noto‘g‘ri sheet nomi bo‘lsa GViz ba'zan boshqa tabni qaytaradi.
+    // Faqat kutilgan bo‘lim kodi ko‘rilgan va faol blok shu bo‘limga
+    // tegishli bo‘lgandagina xodim qatorini qabul qilamiz.
+    if (!sawExpectedCode || currentDept !== String(expectedCode)) continue;
+    if (!currentMonth || !tab || !employee) continue;
+    if (/^tab\s*no$/i.test(tab) || /^xodim$/i.test(employee)) continue;
+
+    out.push({
+      m: currentMonth,
+      d: String(expectedCode),
+      e: employee,
+      tab,
+      s: shift,
+      g: gvizNumber(c[6]),
+      j: gvizNumber(c[9]),
+      x: gvizNumber(c[12]),
+      day: Array.from({ length: 31 }, (_, i) => c[i + 14] ?? null),
+    });
+  }
+
+  return out;
 }
 
 async function fetchSheetByName(name, expectedCode) {
@@ -201,7 +232,7 @@ async function fetchSheetByName(name, expectedCode) {
 
   const text = await response.text();
   const parsed = parseGviz(text);
-  const allRecords = normalizeGviz(parsed);
+  const allRecords = normalizeGviz(parsed, expectedCode);
 
   // Google GViz can silently return the first sheet when a requested
   // sheet name is wrong. Accept only rows that belong to this department.
@@ -264,7 +295,7 @@ async function getGoogleData() {
   const unique = [];
   const seen = new Set();
   for (const row of records) {
-    const key = `${row.m}|${row.d}|${row.tab}`;
+    const key = `${row.m}|${row.d}|${row.tab || row.e}|${row.e}`;
     if (seen.has(key)) continue;
     seen.add(key);
     unique.push(row);
@@ -364,12 +395,18 @@ export default {
 
       if (path === "/api/google-test") {
         const data = await getGoogleData();
+        const countsByMonth = {};
+        for (const row of data.records) {
+          if (!countsByMonth[row.m]) countsByMonth[row.m] = {};
+          countsByMonth[row.m][row.d] = (countsByMonth[row.m][row.d] || 0) + 1;
+        }
         return json({
           ok: true,
           source: data.source,
           spreadsheetId: SPREADSHEET_ID,
           totalRecords: data.records.length,
           loaded: data.loaded,
+          countsByMonth,
           errors: data.errors,
           refreshedAt: data.refreshedAt,
         });
