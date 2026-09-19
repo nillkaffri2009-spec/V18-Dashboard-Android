@@ -93,3 +93,495 @@ jobs:
           android {
               namespace 'com.v18.dashboard'
               compileSdk 35
+
+              defaultConfig {
+                  applicationId 'com.v18.dashboard'
+                  minSdk 23
+                  targetSdk 35
+
+                  versionCode 19400
+                  versionName '19.4-cloud'
+              }
+          }
+          EOF
+
+          # -----------------------------------------------------
+          # AndroidManifest.xml
+          # -----------------------------------------------------
+          cat > app/src/main/AndroidManifest.xml <<'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+              <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+              <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+
+              <application
+                  android:theme="@style/AppTheme"
+                  android:label="V18 Dashboard"
+                  android:usesCleartextTraffic="false"
+                  android:allowBackup="false"
+                  android:supportsRtl="true">
+
+                  <activity
+                      android:name=".MainActivity"
+                      android:configChanges="orientation|screenSize|keyboardHidden"
+                      android:screenOrientation="unspecified"
+                      android:exported="true">
+
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+
+                  </activity>
+
+              </application>
+
+          </manifest>
+          EOF
+
+          # -----------------------------------------------------
+          # styles.xml
+          # -----------------------------------------------------
+          cat > app/src/main/res/values/styles.xml <<'EOF'
+          <resources>
+
+              <style
+                  name="AppTheme"
+                  parent="android:style/Theme.Material.Light.NoActionBar">
+
+                  <item name="android:fontFamily">sans</item>
+
+                  <item name="android:colorAccent">#1976D2</item>
+
+                  <item name="android:windowLightStatusBar">true</item>
+
+                  <item name="android:statusBarColor">#FFFFFF</item>
+
+                  <item name="android:navigationBarColor">#FFFFFF</item>
+
+                  <item name="android:windowActionModeOverlay">true</item>
+
+                  <item name="android:windowNoTitle">true</item>
+
+              </style>
+
+          </resources>
+          EOF
+
+          # =====================================================
+          # MainActivity.java
+          # =====================================================
+          cat > app/src/main/java/com/v18/dashboard/MainActivity.java <<'EOF'
+          package com.v18.dashboard;
+
+          import android.app.Activity;
+          import android.graphics.Bitmap;
+          import android.os.Bundle;
+          import android.view.View;
+          import android.webkit.WebChromeClient;
+          import android.webkit.WebResourceError;
+          import android.webkit.WebResourceRequest;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+          import android.widget.TextView;
+          import android.widget.LinearLayout;
+          import android.widget.Button;
+          import android.graphics.Color;
+          import android.view.Gravity;
+
+          public class MainActivity extends Activity {
+
+              private WebView webView;
+
+              // =================================================
+              // V18 SERVER
+              // =================================================
+              private static final String SERVER_URL =
+                      "https://v18-dashboard-server.nill-kaffri-2009.workers.dev/phone?mode=phone";
+
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+
+                  createWebView();
+
+                  if (savedInstanceState == null) {
+
+                      loadDashboard();
+
+                  } else {
+
+                      boolean restored =
+                              webView.restoreState(savedInstanceState) != null;
+
+                      if (!restored) {
+                          loadDashboard();
+                      }
+                  }
+              }
+
+              // =================================================
+              // CREATE WEBVIEW
+              // =================================================
+              private void createWebView() {
+
+                  webView = new WebView(this);
+
+                  setContentView(webView);
+
+                  WebSettings settings = webView.getSettings();
+
+                  // JavaScript
+                  settings.setJavaScriptEnabled(true);
+
+                  // HTML5 Local Storage
+                  settings.setDomStorageEnabled(true);
+
+                  // Database
+                  settings.setDatabaseEnabled(true);
+
+                  // Network
+                  settings.setBlockNetworkLoads(false);
+
+                  // File/content
+                  settings.setAllowFileAccess(true);
+                  settings.setAllowContentAccess(true);
+
+                  // Responsive dashboard
+                  settings.setLoadWithOverviewMode(true);
+                  settings.setUseWideViewPort(true);
+
+                  // Zoom
+                  settings.setSupportZoom(true);
+                  settings.setBuiltInZoomControls(true);
+                  settings.setDisplayZoomControls(false);
+
+                  // JS windows
+                  settings.setJavaScriptCanOpenWindowsAutomatically(true);
+
+                  // Media
+                  settings.setMediaPlaybackRequiresUserGesture(false);
+
+                  // Cache
+                  settings.setCacheMode(
+                          WebSettings.LOAD_DEFAULT
+                  );
+
+                  // HTTP + HTTPS mixed content
+                  settings.setMixedContentMode(
+                          WebSettings.MIXED_CONTENT_NEVER_ALLOW
+                  );
+
+                  // User Agent marker
+                  String oldUA = settings.getUserAgentString();
+
+                  settings.setUserAgentString(
+                          oldUA + " V18DashboardPhone/19.4"
+                  );
+
+                  webView.setWebChromeClient(
+                          new WebChromeClient()
+                  );
+
+                  webView.setWebViewClient(
+                          new DashboardWebViewClient()
+                  );
+              }
+
+              // =================================================
+              // LOAD DASHBOARD
+              // =================================================
+              private void loadDashboard() {
+
+                  if (webView != null) {
+
+                      webView.loadUrl(SERVER_URL);
+
+                  }
+              }
+
+              // =================================================
+              // WEBVIEW CLIENT
+              // =================================================
+              private class DashboardWebViewClient
+                      extends WebViewClient {
+
+                  @Override
+                  public boolean shouldOverrideUrlLoading(
+                          WebView view,
+                          WebResourceRequest request) {
+
+                      return false;
+                  }
+
+                  @Override
+                  public void onPageStarted(
+                          WebView view,
+                          String url,
+                          Bitmap favicon) {
+
+                      super.onPageStarted(
+                              view,
+                              url,
+                              favicon
+                      );
+                  }
+
+                  @Override
+                  public void onPageFinished(
+                          WebView view,
+                          String url) {
+
+                      super.onPageFinished(
+                              view,
+                              url
+                      );
+                  }
+
+                  @Override
+                  public void onReceivedError(
+                          WebView view,
+                          WebResourceRequest request,
+                          WebResourceError error) {
+
+                      super.onReceivedError(
+                              view,
+                              request,
+                              error
+                      );
+
+                      if (request.isForMainFrame()) {
+
+                          showConnectionError();
+
+                      }
+                  }
+              }
+
+              // =================================================
+              // CONNECTION ERROR SCREEN
+              // =================================================
+              private void showConnectionError() {
+
+                  runOnUiThread(() -> {
+
+                      LinearLayout layout =
+                              new LinearLayout(this);
+
+                      layout.setOrientation(
+                              LinearLayout.VERTICAL
+                      );
+
+                      layout.setGravity(
+                              Gravity.CENTER
+                      );
+
+                      layout.setPadding(
+                              50,
+                              50,
+                              50,
+                              50
+                      );
+
+                      layout.setBackgroundColor(
+                              Color.WHITE
+                      );
+
+                      TextView title =
+                              new TextView(this);
+
+                      title.setText(
+                              "V18 Dashboard серверига уланиб бўлмади"
+                      );
+
+                      title.setTextSize(24);
+
+                      title.setTextColor(
+                              Color.rgb(20, 58, 95)
+                      );
+
+                      title.setGravity(
+                              Gravity.CENTER
+                      );
+
+                      TextView info =
+                              new TextView(this);
+
+                      info.setText(
+                              "\nCloud Dashboard серверига уланиб бўлмади.\n\n" +
+                              "Текширинг:\n\n" +
+                              "1. Телефонда интернет ёқилган бўлсин.\n" +
+                              "2. Wi-Fi ёки мобил интернет ишласин.\n" +
+                              "3. Cloudflare сервери очиқ бўлсин.\n\n" +
+                              "Сўнг ҚАЙТА УЛАНИШ тугмасини босинг."
+                      );
+
+                      info.setTextSize(18);
+
+                      info.setTextColor(
+                              Color.DKGRAY
+                      );
+
+                      info.setGravity(
+                              Gravity.CENTER
+                      );
+
+                      Button retry =
+                              new Button(this);
+
+                      retry.setText(
+                              "ҚАЙТА УЛАНИШ"
+                      );
+
+                      retry.setTextSize(18);
+
+                      retry.setOnClickListener(v -> {
+
+                          createWebView();
+
+                          loadDashboard();
+
+                      });
+
+                      layout.addView(title);
+
+                      layout.addView(info);
+
+                      layout.addView(retry);
+
+                      setContentView(layout);
+
+                  });
+              }
+
+              // =================================================
+              // SAVE STATE
+              // =================================================
+              @Override
+              protected void onSaveInstanceState(
+                      Bundle outState) {
+
+                  if (webView != null) {
+
+                      webView.saveState(
+                              outState
+                      );
+
+                  }
+
+                  super.onSaveInstanceState(
+                          outState
+                  );
+              }
+
+              // =================================================
+              // BACK BUTTON
+              // =================================================
+              @Override
+              public void onBackPressed() {
+
+                  if (webView != null &&
+                          webView.canGoBack()) {
+
+                      webView.goBack();
+
+                  } else {
+
+                      super.onBackPressed();
+
+                  }
+              }
+
+              // =================================================
+              // DESTROY
+              // =================================================
+              @Override
+              protected void onDestroy() {
+
+                  if (webView != null) {
+
+                      webView.stopLoading();
+
+                      webView.clearHistory();
+
+                      webView.removeAllViews();
+
+                      webView.destroy();
+
+                      webView = null;
+
+                  }
+
+                  super.onDestroy();
+              }
+          }
+          EOF
+
+          echo "======================================"
+          echo "ANDROID PROJECT CREATED"
+          echo "SERVER:"
+          echo "https://v18-dashboard-server.nill-kaffri-2009.workers.dev/phone?mode=phone"
+          echo "======================================"
+
+      # =========================================================
+      # 4. GRADLE
+      # =========================================================
+      - name: Install Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      # =========================================================
+      # 5. BUILD APK
+      # =========================================================
+      - name: Build APK
+        run: |
+          echo "=== BUILDING APK ==="
+
+          gradle clean assembleDebug --no-daemon
+
+          echo "=== APK OUTPUT ==="
+
+          find app/build/outputs/apk \
+            -type f \
+            -name "*.apk" \
+            -ls
+
+          if [ ! -f \
+            "app/build/outputs/apk/debug/app-debug.apk" ]; then
+
+            echo "ERROR: APK was not created"
+
+            exit 1
+
+          fi
+
+          echo "APK build successful."
+
+      # =========================================================
+      # 6. RENAME APK
+      # =========================================================
+      - name: Rename APK
+        run: |
+          mkdir -p release
+
+          cp \
+            app/build/outputs/apk/debug/app-debug.apk \
+            release/V18-Dashboard-V19.4-CLOUD-PHONE.apk
+
+          echo "=== RELEASE APK ==="
+
+          ls -lh release/
+
+      # =========================================================
+      # 7. UPLOAD APK
+      # =========================================================
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: V18-DASHBOARD-V19.4-CLOUD-PHONE
+          path: release/V18-Dashboard-V19.4-CLOUD-PHONE.apk
+          if-no-files-found: error
+          retention-days: 30
