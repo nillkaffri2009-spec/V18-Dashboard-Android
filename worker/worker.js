@@ -4,7 +4,7 @@
 // Google Sheets -> Cloudflare Worker -> Admin / Phone / Monitor
 // ============================================================
 
-const VERSION = "19.2-cloud";
+const VERSION = "19.3-cloud";
 const SPREADSHEET_ID = "1IWyUdorge58MbvpNlB5Z08Rawm8AdoeHinxgjiFktF4";
 
 const CORS_HEADERS = {
@@ -176,7 +176,8 @@ function normalizeGviz(obj, expectedCode) {
   let currentDept = "";
   let sawExpectedCode = false;
 
-  for (const row of rows) {
+  for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+    const row = rows[rowIndex];
     const c = (row?.c || []).map(gvizValue);
 
     const rawMonth = String(c[1] ?? "").trim();
@@ -196,7 +197,10 @@ function normalizeGviz(obj, expectedCode) {
     // Faqat kutilgan bo‘lim kodi ko‘rilgan va faol blok shu bo‘limga
     // tegishli bo‘lgandagina xodim qatorini qabul qilamiz.
     if (!sawExpectedCode || currentDept !== String(expectedCode)) continue;
-    if (!currentMonth || !tab || !employee) continue;
+    // MUHIM: Tab No ustunida raqam va matn aralash (masalan 9254 va A531).
+    // Google Visualization API bunday aralash ustunda ayrim qiymatlarni null qiladi.
+    // Xodimni faqat tab raqami yo‘qolgani uchun tashlab yubormaymiz.
+    if (!currentMonth || !employee) continue;
     if (/^tab\s*no$/i.test(tab) || /^xodim$/i.test(employee)) continue;
 
     out.push({
@@ -204,6 +208,7 @@ function normalizeGviz(obj, expectedCode) {
       d: String(expectedCode),
       e: employee,
       tab,
+      sourceRow: rowIndex + 1,
       s: shift,
       g: gvizNumber(c[6]),
       j: gvizNumber(c[9]),
@@ -295,7 +300,8 @@ async function getGoogleData() {
   const unique = [];
   const seen = new Set();
   for (const row of records) {
-    const key = `${row.m}|${row.d}|${row.tab || row.e}|${row.e}`;
+    const identity = row.tab || `row:${row.sourceRow ?? ""}`;
+    const key = `${row.m}|${row.d}|${identity}|${row.e}`;
     if (seen.has(key)) continue;
     seen.add(key);
     unique.push(row);
