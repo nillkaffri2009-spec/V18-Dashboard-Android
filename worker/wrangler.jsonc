@@ -3,6 +3,11 @@
   "main": "worker.js",
   "compatibility_date": "2026-09-18",
 
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+
   "durable_objects": {
     "bindings": [
       {
@@ -15,9 +20,7 @@
   "migrations": [
     {
       "tag": "v1",
-      "new_sqlite_classes": [
-        "V18State"
-      ]
+      "new_sqlite_classes": ["V18State"]
     }
   ]
 }

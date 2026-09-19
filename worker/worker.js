@@ -1,1374 +1,518 @@
 // ============================================================
-// V18 DASHBOARD CLOUD SERVER
-// Version: 18.5
-// Cloudflare Worker
-//
-// Architecture:
+// V18 ASOSIY DESIGN 2 - CLOUD SERVER
+// Version: 19.0-cloud
 // Google Sheets -> Cloudflare Worker -> Admin / Phone / Monitor
 // ============================================================
 
-const VERSION = "18.5";
+const VERSION = "19.0-cloud";
 const SPREADSHEET_ID = "1IWyUdorge58MbvpNlB5Z08Rawm8AdoeHinxgjiFktF4";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-V18-Device",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers":
+    "Content-Type, X-Dashboard-Role, X-Dashboard-Device",
   "Access-Control-Max-Age": "86400",
 };
 
+const APP_ROUTES = new Set(["/", "/admin", "/monitor", "/phone", "/tv"]);
 
-// ============================================================
-// JSON RESPONSE
-// ============================================================
+const SHEETS = [
+  {
+    code: "21010",
+    names: ["21010 Tibbiy qism 2026 (16)", "21010 Tibbiy qism (16)"],
+  },
+  {
+    code: "21111",
+    names: ["21111 Farroshlar (65)"],
+  },
+  {
+    code: "21113",
+    names: ["21113 Bog‘bon 2026 (36)", "21113 Bog‘bonlar 2026 (36)", "21113 Bog‘bonlar (36)"],
+  },
+  {
+    code: "21120",
+    names: ["21120 Umumiy Ovq. bo'l. (200)", "21120 Umumiy ovqatlanish (200)"],
+  },
+  {
+    code: "21130",
+    names: ["21130 Oziq ovqat ta'minoti (8)", "21130 Oziq-ovqat ta’minoti (8)", "21130 Oziq-ovqat ta‘minoti (8)"],
+  },
+  {
+    code: "21140",
+    names: ["21140 Katedj (17)", "21140 Yotoqxona majmuasi (17)"],
+  },
+];
 
-function json(data, status = 200) {
-  return new Response(
-    JSON.stringify(data, null, 2),
-    {
-      status: status,
-      headers: {
-        "Content-Type": "application/json; charset=UTF-8",
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-        ...CORS_HEADERS
-      }
-    }
-  );
+function json(data, status = 200, extraHeaders = {}) {
+  return new Response(JSON.stringify(data, null, 2), {
+    status,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      ...CORS_HEADERS,
+      ...extraHeaders,
+    },
+  });
 }
 
+function withNoStore(response) {
+  const headers = new Headers(response.headers);
+  headers.set("Cache-Control", "no-store");
+  for (const [k, v] of Object.entries(CORS_HEADERS)) headers.set(k, v);
 
-// ============================================================
-// HTML RESPONSE
-// ============================================================
-
-function html(data, status = 200) {
-  return new Response(
-    data,
-    {
-      status: status,
-      headers: {
-        "Content-Type": "text/html; charset=UTF-8",
-        "Cache-Control": "no-store",
-        ...CORS_HEADERS
-      }
-    }
-  );
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
 }
 
-
-// ============================================================
-// SAFE JSON BODY
-// ============================================================
-
-async function getJsonBody(request) {
-  try {
-    return await request.json();
-  } catch (e) {
-    return {};
-  }
-}
-
-
-// ============================================================
-// DEFAULT DASHBOARD STATE
-// ============================================================
-
-function defaultState() {
-  return {
-    version: VERSION,
-
-    controller: "admin",
-
-    screen: "kunlik",
-
-    department: "all",
-
-    shift: "all",
-
-    workHour: "all",
-
-    month: "",
-
-    day: "",
-
-    updatedAt: null,
-
-    updatedBy: null
-  };
-}
-
-
-// ============================================================
-// OPTIONAL WRITE SECURITY
-//
-// Агар Cloudflare'да V18_WRITE_KEY secret яратилмаган бўлса,
-// ёзиш ҳозирча очиқ қолади.
-//
-// Кейинчалик V18_WRITE_KEY secret қўшилса,
-// POST/PATCH/PUT учун Authorization талаб қилинади.
-// ============================================================
-
-function canWrite(request, env) {
-
-  if (!env || !env.V18_WRITE_KEY) {
-    return true;
-  }
-
-  const auth =
-    request.headers.get("Authorization") || "";
-
-  return auth ===
-    `Bearer ${env.V18_WRITE_KEY}`;
-}
-
-
-// ============================================================
-// GOOGLE SHEETS XLSX EXPORT
-// ============================================================
-
-async function getGoogleXlsx() {
-
-  const url =
-    "https://docs.google.com/spreadsheets/d/" +
-    SPREADSHEET_ID +
-    "/export?format=xlsx";
-
-
-  const response =
-    await fetch(
-      url,
-      {
-        headers: {
-          "User-Agent":
-            "V18-Dashboard-Cloud/18.5"
-        },
-
-        cf: {
-          cacheTtl: 0,
-          cacheEverything: false
-        }
-      }
-    );
-
-
-  if (!response.ok) {
-
-    throw new Error(
-      "Google Sheets XLSX error: HTTP " +
-      response.status
-    );
-  }
-
-
-  const buffer =
-    await response.arrayBuffer();
-
-
-  return new Response(
-    buffer,
-    {
-      status: 200,
-
-      headers: {
-
-        "Content-Type":
-          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-
-        "Content-Disposition":
-          'inline; filename="V18-Google-Sheets.xlsx"',
-
-        "Cache-Control":
-          "no-store, no-cache, must-revalidate",
-
-        ...CORS_HEADERS
-      }
-    }
-  );
-}
-
-
-// ============================================================
-// GOOGLE SHEETS CSV
-//
-// Example:
-// /api/google-csv?gid=1701842361
-// ============================================================
-
-async function getGoogleCsv(gid) {
-
-  if (!gid) {
-    gid = "1701842361";
-  }
-
-
-  const url =
-    "https://docs.google.com/spreadsheets/d/" +
-    SPREADSHEET_ID +
-    "/export?format=csv&gid=" +
-    encodeURIComponent(gid);
-
-
-  const response =
-    await fetch(
-      url,
-      {
-        headers: {
-          "User-Agent":
-            "V18-Dashboard-Cloud/18.5"
-        },
-
-        cf: {
-          cacheTtl: 0,
-          cacheEverything: false
-        }
-      }
-    );
-
-
-  if (!response.ok) {
-
-    throw new Error(
-      "Google Sheets CSV error: HTTP " +
-      response.status
-    );
-  }
-
-
-  const csv =
-    await response.text();
-
-
-  return new Response(
-    csv,
-    {
-      status: 200,
-
-      headers: {
-
-        "Content-Type":
-          "text/csv; charset=UTF-8",
-
-        "Cache-Control":
-          "no-store, no-cache, must-revalidate",
-
-        ...CORS_HEADERS
-      }
-    }
-  );
-}
-
-
-// ============================================================
-// GOOGLE SHEETS CONNECTION TEST
-// ============================================================
-
-async function testGoogleSheets() {
-
-  const url =
-    "https://docs.google.com/spreadsheets/d/" +
-    SPREADSHEET_ID +
-    "/export?format=csv&gid=1701842361";
-
-
-  try {
-
-    const response =
-      await fetch(
-        url,
-        {
-          cf: {
-            cacheTtl: 0,
-            cacheEverything: false
-          }
-        }
-      );
-
-
-    return {
-
-      ok: response.ok,
-
-      status: response.status,
-
-      source: "Google Sheets",
-
-      spreadsheetId:
-        SPREADSHEET_ID
-    };
-
-
-  } catch (error) {
-
-    return {
-
-      ok: false,
-
-      source: "Google Sheets",
-
-      error:
-        String(
-          error &&
-          error.message
-            ? error.message
-            : error
-        )
-    };
-  }
-}
-
-
-// ============================================================
-// STATE GET
-// ============================================================
-
-async function getState(env) {
-
-  if (env && env.V18_STATE) {
-
-    const id =
-      env.V18_STATE.idFromName(
-        "main"
-      );
-
-
-    const object =
-      env.V18_STATE.get(id);
-
-
-    const response =
-      await object.fetch(
-        "https://v18-state/state"
-      );
-
-
-    if (response.ok) {
-      return await response.json();
-    }
-  }
-
-
-  return defaultState();
-}
-
-
-// ============================================================
-// STATE UPDATE
-// ============================================================
-
-async function updateState(
-  env,
-  body,
-  request
-) {
-
-  if (
-    !body ||
-    typeof body !== "object"
-  ) {
-
-    throw new Error(
-      "Invalid state body"
-    );
-  }
-
-
-  const device =
-    request.headers.get(
-      "X-V18-Device"
-    ) ||
-    body.updatedBy ||
-    "unknown";
-
-
-  const outgoing = {
-
-    ...body,
-
-    updatedBy:
-      device,
-
-    updatedAt:
-      new Date().toISOString()
-  };
-
-
-  if (env && env.V18_STATE) {
-
-    const id =
-      env.V18_STATE.idFromName(
-        "main"
-      );
-
-
-    const object =
-      env.V18_STATE.get(id);
-
-
-    const response =
-      await object.fetch(
-        "https://v18-state/state",
-        {
-          method: "POST",
-
-          headers: {
-            "Content-Type":
-              "application/json"
-          },
-
-          body:
-            JSON.stringify(outgoing)
-        }
-      );
-
-
-    return await response.json();
-  }
-
+function defaultView() {
+  const now = new Date();
+  const month = now.getUTCFullYear() === 2026 ? now.getUTCMonth() : 0;
+  const day = now.getUTCFullYear() === 2026 ? now.getUTCDate() : 1;
 
   return {
-
-    ok: false,
-
-    persistent: false,
-
-    message:
-      "V18_STATE Durable Object binding hali ulanmagan.",
-
-    received:
-      outgoing
+    month,
+    day,
+    page: 1,
+    department: "",
+    shift: "",
+    hours: "",
+    detail: "",
+    query: "",
+    tableShift: "",
+    tableStatus: "",
+    minHours: "",
+    maxHours: "",
   };
 }
 
-
-// ============================================================
-// HOME PAGE
-// ============================================================
-
-function homePage() {
-
-  return `
-<!doctype html>
-
-<html lang="uz">
-
-<head>
-
-<meta charset="utf-8">
-
-<meta
-  name="viewport"
-  content="width=device-width,initial-scale=1">
-
-<title>
-V18 Dashboard Cloud Server
-</title>
-
-
-<style>
-
-body {
-
-  margin: 0;
-
-  background: #f4f7fb;
-
-  font-family:
-    Arial,
-    sans-serif;
-
-  color: #17324d;
+function initialState() {
+  return {
+    source: "computer",
+    epoch: 1,
+    revision: 1,
+    updatedAt: Date.now(),
+    devices: {
+      computer: { owner: "", view: null },
+      phone: { owner: "", view: null },
+      monitor: { owner: "", view: null },
+    },
+    phoneUntil: 0,
+  };
 }
 
+function sanitizeView(input) {
+  const base = defaultView();
+  if (!input || typeof input !== "object" || Array.isArray(input)) return base;
 
-.box {
+  const out = { ...base };
 
-  max-width: 780px;
+  for (const key of Object.keys(base)) {
+    if (!(key in input)) continue;
 
-  margin: 60px auto;
+    if (["month", "day", "page"].includes(key)) {
+      const n = Number(input[key]);
+      if (Number.isInteger(n)) out[key] = n;
+    } else {
+      const limit = key === "query" ? 80 : 30;
+      out[key] = String(input[key] ?? "").slice(0, limit);
+    }
+  }
 
-  background: white;
+  if (out.month < 0 || out.month > 11) out.month = 0;
+  if (out.day < 1 || out.day > 31) out.day = 1;
+  if (out.page < 1 || out.page > 3) out.page = 1;
 
-  border-radius: 20px;
+  const depts = ["", "21010", "21111", "21113", "21120", "21130", "21140"];
+  if (!depts.includes(out.department)) out.department = "";
+  if (!["", "0", "under8", "8", "over8"].includes(out.hours)) out.hours = "";
+  if (!["", "all", "present", "absent", "hours"].includes(out.detail)) out.detail = "";
+  if (!["", "present", "absent", "rest"].includes(out.tableStatus)) out.tableStatus = "";
 
-  padding: 32px;
-
-  box-shadow:
-    0 12px 40px
-    rgba(0,0,0,.10);
+  return out;
 }
 
+function getRoleAndDevice(request) {
+  let role = request.headers.get("X-Dashboard-Role") || "computer";
+  const cid = request.headers.get("X-Dashboard-Device") || "";
 
-h1 {
-  margin-top: 0;
+  if (!["computer", "phone", "monitor"].includes(role)) role = "computer";
+
+  return { role, cid };
 }
 
-
-.ok {
-
-  display: inline-block;
-
-  background: #e8f7ee;
-
-  color: #147a3d;
-
-  padding: 8px 14px;
-
-  border-radius: 999px;
-
-  font-weight: bold;
+function gvizValue(cell) {
+  return cell?.v ?? cell?.f ?? null;
 }
 
-
-.row {
-
-  margin-top: 18px;
-
-  padding: 15px;
-
-  background: #f6f8fb;
-
-  border-radius: 12px;
+function gvizNumber(value) {
+  const n = Number(String(value ?? "").replace(",", "."));
+  return Number.isFinite(n) ? n : 0;
 }
 
-
-code {
-  word-break: break-all;
+function parseGviz(text) {
+  const a = text.indexOf("{");
+  const b = text.lastIndexOf("}");
+  if (a < 0 || b < a) throw new Error("Google Sheets javobi noto‘g‘ri.");
+  return JSON.parse(text.slice(a, b + 1));
 }
 
-</style>
+function normalizeGviz(obj) {
+  return (obj?.table?.rows || [])
+    .map((row) => {
+      const c = (row?.c || []).map(gvizValue);
+      const d = String(c[2] ?? "").trim();
+      const e = String(c[4] ?? "").trim();
+      const m = String(c[1] ?? "").trim();
+      if (!/^\d+$/.test(d) || !e || !m) return null;
 
-</head>
-
-
-<body>
-
-<div class="box">
-
-<h1>
-V18 Dashboard Cloud Server
-</h1>
-
-
-<div class="ok">
-SERVER ONLINE
-</div>
-
-
-<div class="row">
-
-Version:
-
-<strong>
-${VERSION}
-</strong>
-
-</div>
-
-
-<div class="row">
-
-Computer server:
-
-<strong>
-NOT REQUIRED
-</strong>
-
-</div>
-
-
-<div class="row">
-
-Google Sheets:
-
-<code>
-${SPREADSHEET_ID}
-</code>
-
-</div>
-
-
-<div class="row">
-
-Health API:
-
-<code>
-/api/health
-</code>
-
-</div>
-
-
-<div class="row">
-
-Google test:
-
-<code>
-/api/google-test
-</code>
-
-</div>
-
-
-<div class="row">
-
-Google CSV:
-
-<code>
-/api/google-csv?gid=1701842361
-</code>
-
-</div>
-
-
-<div class="row">
-
-Google XLSX:
-
-<code>
-/api/google-xlsx
-</code>
-
-</div>
-
-
-<div class="row">
-
-Dashboard state:
-
-<code>
-/api/state
-</code>
-
-</div>
-
-
-<div class="row">
-
-Phone controller test:
-
-<code>
-/api/test-phone
-</code>
-
-</div>
-
-
-<div class="row">
-
-Admin controller test:
-
-<code>
-/api/test-admin
-</code>
-
-</div>
-
-
-</div>
-
-</body>
-
-</html>
-`;
+      return {
+        m,
+        d,
+        e,
+        tab: String(c[3] ?? ""),
+        s: String(c[5] ?? ""),
+        g: gvizNumber(c[6]),
+        j: gvizNumber(c[9]),
+        x: gvizNumber(c[12]),
+        day: Array.from({ length: 31 }, (_, i) => c[i + 14] ?? null),
+      };
+    })
+    .filter(Boolean);
 }
 
+async function fetchSheetByName(name) {
+  const url =
+    `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq` +
+    `?tqx=out:json&sheet=${encodeURIComponent(name)}` +
+    `&tq=${encodeURIComponent("select *")}`;
 
-// ============================================================
-// MAIN WORKER
-// ============================================================
+  const response = await fetch(url, {
+    headers: { "User-Agent": `V18-Dashboard-Cloud/${VERSION}` },
+    cf: { cacheTtl: 0, cacheEverything: false },
+  });
+
+  if (!response.ok) {
+    throw new Error(`${name}: HTTP ${response.status}`);
+  }
+
+  const text = await response.text();
+  const parsed = parseGviz(text);
+  const records = normalizeGviz(parsed);
+
+  if (!records.length) {
+    throw new Error(`${name}: ma’lumot topilmadi`);
+  }
+
+  return records;
+}
+
+async function fetchDepartment(sheet) {
+  const errors = [];
+
+  for (const name of sheet.names) {
+    try {
+      const records = await fetchSheetByName(name);
+      return { code: sheet.code, sheet: name, records };
+    } catch (error) {
+      errors.push(String(error?.message || error));
+    }
+  }
+
+  throw new Error(`${sheet.code}: ${errors.join(" | ")}`);
+}
+
+async function getGoogleData() {
+  const settled = await Promise.allSettled(SHEETS.map(fetchDepartment));
+  const records = [];
+  const loaded = [];
+  const errors = [];
+
+  for (const item of settled) {
+    if (item.status === "fulfilled") {
+      loaded.push({
+        code: item.value.code,
+        sheet: item.value.sheet,
+        count: item.value.records.length,
+      });
+      records.push(...item.value.records);
+    } else {
+      errors.push(String(item.reason?.message || item.reason));
+    }
+  }
+
+  if (!records.length) {
+    throw new Error("Google Sheets ma’lumotlari olinmadi: " + errors.join("; "));
+  }
+
+  return {
+    records,
+    refreshedAt: new Date().toISOString(),
+    source: "google-sheets-cloud",
+    loaded,
+    errors,
+  };
+}
+
+async function serveIndex(request, env) {
+  const url = new URL(request.url);
+  url.pathname = "/index.html";
+  const response = await env.ASSETS.fetch(new Request(url.toString(), request));
+  return withNoStore(response);
+}
+
+async function serveAsset(request, env) {
+  const response = await env.ASSETS.fetch(request);
+  return withNoStore(response);
+}
+
+async function serveDataJson(request, env) {
+  const url = new URL(request.url);
+  url.pathname = "/data.json";
+
+  const assetResponse = await env.ASSETS.fetch(new Request(url.toString(), request));
+
+  if (!assetResponse.ok) {
+    return json({ error: "data.json topilmadi" }, 500);
+  }
+
+  const body = await assetResponse.text();
+  return new Response(body, {
+    status: 200,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store",
+      ...CORS_HEADERS,
+    },
+  });
+}
+
+async function forwardToState(request, env) {
+  const id = env.V18_STATE.idFromName("main");
+  const stub = env.V18_STATE.get(id);
+
+  const headers = new Headers();
+  headers.set("Content-Type", "application/json");
+  headers.set(
+    "X-Dashboard-Role",
+    request.headers.get("X-Dashboard-Role") || "computer"
+  );
+  headers.set(
+    "X-Dashboard-Device",
+    request.headers.get("X-Dashboard-Device") || ""
+  );
+
+  const init = {
+    method: request.method,
+    headers,
+  };
+
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    init.body = await request.text();
+  }
+
+  return stub.fetch("https://internal.v18/state", init);
+}
 
 export default {
-
-  async fetch(
-    request,
-    env,
-    ctx
-  ) {
-
+  async fetch(request, env) {
     try {
-
-      const url =
-        new URL(
-          request.url
-        );
-
-
-      const path =
-        url.pathname;
-
-
-      const method =
-        request.method.toUpperCase();
-
-
-      // ======================================================
-      // OPTIONS / CORS
-      // ======================================================
+      const url = new URL(request.url);
+      const path = url.pathname;
+      const method = request.method.toUpperCase();
 
       if (method === "OPTIONS") {
-
-        return new Response(
-          null,
-          {
-            status: 204,
-            headers:
-              CORS_HEADERS
-          }
-        );
+        return new Response(null, { status: 204, headers: CORS_HEADERS });
       }
-
-
-      // ======================================================
-      // HOME
-      // ======================================================
-
-      if (path === "/") {
-
-        return html(
-          homePage()
-        );
-      }
-
-
-      // ======================================================
-      // HEALTH
-      // ======================================================
 
       if (path === "/api/health") {
-
         return json({
-
           ok: true,
-
-          service:
-            "V18 Dashboard Cloud Server",
-
-          version:
-            VERSION,
-
-          computerRequired:
-            false,
-
-          durableObjectConfigured:
-            Boolean(
-              env &&
-              env.V18_STATE
-            ),
-
-          writeKeyConfigured:
-            Boolean(
-              env &&
-              env.V18_WRITE_KEY
-            ),
-
-          timestamp:
-            new Date().toISOString()
+          service: "V18 Asosiy design 2 Cloud Server",
+          version: VERSION,
+          computerRequired: false,
+          durableObjectConfigured: Boolean(env?.V18_STATE),
+          assetsConfigured: Boolean(env?.ASSETS),
+          timestamp: new Date().toISOString(),
         });
       }
-
-
-      // ======================================================
-      // GOOGLE TEST
-      // ======================================================
 
       if (path === "/api/google-test") {
-
-        const result =
-          await testGoogleSheets();
-
-
-        return json(result);
-      }
-
-
-      // ======================================================
-      // GOOGLE CSV
-      // ======================================================
-
-      if (path === "/api/google-csv") {
-
-        const gid =
-          url.searchParams.get(
-            "gid"
-          );
-
-
-        return await getGoogleCsv(
-          gid
-        );
-      }
-
-
-      // ======================================================
-      // GOOGLE XLSX
-      // ======================================================
-
-      if (path === "/api/google-xlsx") {
-
-        return await getGoogleXlsx();
-      }
-
-
-      // ======================================================
-      // STATE GET
-      // ======================================================
-
-      if (
-        path === "/api/state" &&
-        method === "GET"
-      ) {
-
-        const state =
-          await getState(env);
-
-
+        const data = await getGoogleData();
         return json({
-
           ok: true,
-
-          persistent:
-            Boolean(
-              env &&
-              env.V18_STATE
-            ),
-
-          state:
-            state
+          source: data.source,
+          spreadsheetId: SPREADSHEET_ID,
+          totalRecords: data.records.length,
+          loaded: data.loaded,
+          errors: data.errors,
+          refreshedAt: data.refreshedAt,
         });
       }
 
-
-      // ======================================================
-      // TEMP TEST
-      // SWITCH CONTROLLER TO PHONE
-      // ======================================================
-
-      if (
-        path === "/api/test-phone" &&
-        method === "GET"
-      ) {
-
-        if (!canWrite(request, env)) {
-
-          return json(
-            {
-              ok: false,
-
-              error:
-                "Unauthorized"
-            },
-            401
-          );
-        }
-
-
-        const result =
-          await updateState(
-            env,
-            {
-              controller:
-                "phone",
-
-              updatedBy:
-                "phone-test"
-            },
-            request
-          );
-
-
-        return json(result);
+      if (path === "/api/google-data") {
+        return json(await getGoogleData());
       }
 
-
-      // ======================================================
-      // TEMP TEST
-      // SWITCH CONTROLLER TO ADMIN
-      // ======================================================
-
-      if (
-        path === "/api/test-admin" &&
-        method === "GET"
-      ) {
-
-        if (!canWrite(request, env)) {
-
-          return json(
-            {
-              ok: false,
-
-              error:
-                "Unauthorized"
-            },
-            401
-          );
-        }
-
-
-        const result =
-          await updateState(
-            env,
-            {
-              controller:
-                "admin",
-
-              updatedBy:
-                "admin-test"
-            },
-            request
-          );
-
-
-        return json(result);
+      if (path === "/api/data") {
+        return serveDataJson(request, env);
       }
 
-
-      // ======================================================
-      // STATE UPDATE
-      // ======================================================
-
-      if (
-        path === "/api/state" &&
-        (
-          method === "POST" ||
-          method === "PUT" ||
-          method === "PATCH"
-        )
-      ) {
-
-        if (!canWrite(request, env)) {
-
-          return json(
-            {
-              ok: false,
-
-              error:
-                "Unauthorized"
-            },
-            401
-          );
-        }
-
-
-        const body =
-          await getJsonBody(
-            request
-          );
-
-
-        const result =
-          await updateState(
-            env,
-            body,
-            request
-          );
-
-
-        return json(result);
+      if (path === "/api/state") {
+        const response = await forwardToState(request, env);
+        return withNoStore(response);
       }
 
-
-      // ======================================================
-      // SERVER INFO
-      // ======================================================
-
-      if (path === "/api/info") {
-
-        return json({
-
-          name:
-            "V18 Dashboard",
-
-          version:
-            VERSION,
-
-          architecture:
-            "Google Sheets -> Cloudflare -> Admin / Phone / Monitor",
-
-          spreadsheetId:
-            SPREADSHEET_ID,
-
-          localPcServerRequired:
-            false,
-
-          durableObjectConfigured:
-            Boolean(
-              env &&
-              env.V18_STATE
-            ),
-
-          writeKeyConfigured:
-            Boolean(
-              env &&
-              env.V18_WRITE_KEY
-            ),
-
-          endpoints: {
-
-            health:
-              "/api/health",
-
-            googleTest:
-              "/api/google-test",
-
-            googleCsv:
-              "/api/google-csv?gid=1701842361",
-
-            googleXlsx:
-              "/api/google-xlsx",
-
-            state:
-              "/api/state",
-
-            tempPhoneTest:
-              "/api/test-phone",
-
-            tempAdminTest:
-              "/api/test-admin"
-          }
-        });
+      if (APP_ROUTES.has(path)) {
+        return serveIndex(request, env);
       }
 
-
-      // ======================================================
-      // 404
-      // ======================================================
-
-      return json(
-        {
-          ok: false,
-
-          error:
-            "V18 endpoint topilmadi.",
-
-          path:
-            path
-        },
-        404
-      );
-
-
+      return serveAsset(request, env);
     } catch (error) {
-
       return json(
         {
           ok: false,
-
-          error:
-            String(
-              error &&
-              error.message
-                ? error.message
-                : error
-            ),
-
-          timestamp:
-            new Date().toISOString()
+          error: String(error?.message || error),
+          timestamp: new Date().toISOString(),
         },
         500
       );
     }
-  }
+  },
 };
 
-
-// ============================================================
-// DURABLE OBJECT
-// V18 REAL-TIME STATE
-//
-// Binding:
-// V18_STATE
-//
-// Class:
-// V18State
-// ============================================================
-
 export class V18State {
-
-  constructor(
-    state,
-    env
-  ) {
-
-    this.state =
-      state;
-
-    this.env =
-      env;
+  constructor(state, env) {
+    this.state = state;
+    this.env = env;
   }
 
+  async loadState() {
+    let data = await this.state.storage.get("dashboard_state_v19");
 
-  // ==========================================================
-  // DEFAULT STATE
-  // ==========================================================
+    if (!data) {
+      data = initialState();
+      await this.state.storage.put("dashboard_state_v19", data);
+    }
 
-  defaultState() {
+    return data;
+  }
+
+  async saveState(data) {
+    await this.state.storage.put("dashboard_state_v19", data);
+  }
+
+  expire(data) {
+    const now = Date.now();
+
+    if (data.source === "phone" && Number(data.phoneUntil || 0) < now) {
+      data.source = "computer";
+      data.epoch += 1;
+      data.revision += 1;
+      data.phoneUntil = 0;
+      data.updatedAt = now;
+    }
+
+    return data;
+  }
+
+  publicState(data, role, cid) {
+    const src = data.source;
+    const view = data.devices?.[src]?.view || defaultView();
+    const owner = data.devices?.[role]?.owner || "";
+    const active = src === role && owner === cid;
 
     return {
-
-      version:
-        VERSION,
-
-      controller:
-        "admin",
-
-      screen:
-        "kunlik",
-
-      department:
-        "all",
-
-      shift:
-        "all",
-
-      workHour:
-        "all",
-
-      month:
-        "",
-
-      day:
-        "",
-
-      updatedAt:
-        null,
-
-      updatedBy:
-        null
+      source: src,
+      epoch: data.epoch,
+      revision: data.revision,
+      updatedAt: data.updatedAt,
+      view,
+      active,
+      isController: active,
     };
   }
 
-
-  // ==========================================================
-  // FETCH
-  // ==========================================================
-
   async fetch(request) {
+    const url = new URL(request.url);
 
-    const url =
-      new URL(
-        request.url
-      );
-
-
-    if (
-      url.pathname !==
-      "/state"
-    ) {
-
-      return json(
-        {
-          ok: false,
-
-          error:
-            "State endpoint topilmadi."
-        },
-        404
-      );
+    if (url.pathname !== "/state") {
+      return json({ error: "State endpoint topilmadi." }, 404);
     }
 
+    const { role, cid } = getRoleAndDevice(request);
+    let data = this.expire(await this.loadState());
 
-    // ========================================================
-    // GET STATE
-    // ========================================================
-
-    if (
-      request.method ===
-      "GET"
-    ) {
-
-      let data =
-        await this.state.storage.get(
-          "dashboard"
-        );
-
-
-      if (!data) {
-
-        data =
-          this.defaultState();
-
-
-        await this.state.storage.put(
-          "dashboard",
-          data
-        );
-      }
-
-
-      return json(data);
+    if (request.method === "GET") {
+      await this.saveState(data);
+      return json(this.publicState(data, role, cid));
     }
 
+    if (request.method !== "POST") {
+      return json({ error: "Method not allowed" }, 405);
+    }
 
-    // ========================================================
-    // UPDATE STATE
-    // ========================================================
+    let body = {};
+    try {
+      body = await request.json();
+    } catch {
+      body = {};
+    }
 
-    if (
-      request.method === "POST" ||
-      request.method === "PUT" ||
-      request.method === "PATCH"
-    ) {
+    const now = Date.now();
+    const action = body.action;
 
-      let current =
-        await this.state.storage.get(
-          "dashboard"
-        );
+    if (action === "claim" && role !== "monitor") {
+      const previousView =
+        data.devices?.[data.source]?.view || defaultView();
 
+      data.source = role;
+      data.devices[role].owner = cid;
 
-      if (!current) {
-
-        current =
-          this.defaultState();
+      if (!data.devices[role].view) {
+        data.devices[role].view = previousView;
       }
 
-
-      let incoming = {};
-
-
-      try {
-
-        incoming =
-          await request.json();
-
-      } catch (e) {
-
-        incoming = {};
-      }
-
-
-      // ======================================================
-      // ALLOWED FIELDS
-      // ======================================================
-
-      const allowed = [
-
-        "controller",
-
-        "screen",
-
-        "department",
-
-        "shift",
-
-        "workHour",
-
-        "month",
-
-        "day",
-
-        "updatedAt",
-
-        "updatedBy"
-      ];
-
-
-      const update = {};
-
-
-      for (
-        const key of allowed
-      ) {
-
-        if (
-          Object.prototype
-            .hasOwnProperty
-            .call(
-              incoming,
-              key
-            )
-        ) {
-
-          update[key] =
-            incoming[key];
-        }
-      }
-
-
-      // ======================================================
-      // CONTROLLER VALIDATION
-      // ======================================================
+      data.epoch += 1;
+      data.revision += 1;
+      data.updatedAt = now;
+      data.phoneUntil = role === "phone" ? now + 25000 : 0;
+    } else {
+      const owner = data.devices?.[role]?.owner || "";
 
       if (
-        Object.prototype
-          .hasOwnProperty
-          .call(
-            update,
-            "controller"
-          )
+        data.source !== role ||
+        owner !== cid ||
+        Number(body.epoch) !== Number(data.epoch)
       ) {
-
-        if (
-          update.controller !== "admin" &&
-          update.controller !== "phone"
-        ) {
-
-          return json(
-            {
-              ok: false,
-
-              error:
-                "controller faqat admin yoki phone bo'lishi mumkin."
-            },
-            400
-          );
-        }
+        return json(
+          { error: "Boshqaruv boshqa qurilmada. Holat yangilanadi." },
+          409
+        );
       }
 
-
-      // ======================================================
-      // MERGE STATE
-      // ======================================================
-
-      const next = {
-
-        ...current,
-
-        ...update,
-
-        version:
-          VERSION,
-
-        updatedAt:
-          incoming.updatedAt ||
-          new Date().toISOString()
-      };
-
-
-      // ======================================================
-      // SAVE PERMANENTLY
-      // ======================================================
-
-      await this.state.storage.put(
-        "dashboard",
-        next
-      );
-
-
-      return json({
-
-        ok: true,
-
-        persistent:
-          true,
-
-        state:
-          next
-      });
+      if (action === "update") {
+        data.devices[role].view = sanitizeView(body.view);
+        data.revision += 1;
+        data.updatedAt = now;
+        if (role === "phone") data.phoneUntil = now + 25000;
+      } else if (action === "heartbeat" && role === "phone") {
+        data.phoneUntil = now + 25000;
+      } else if (action === "release" && role === "phone") {
+        data.source = "computer";
+        data.epoch += 1;
+        data.revision += 1;
+        data.phoneUntil = 0;
+        data.updatedAt = now;
+      } else {
+        return json({ error: "Noma’lum action." }, 400);
+      }
     }
 
-
-    // ========================================================
-    // METHOD NOT ALLOWED
-    // ========================================================
-
-    return json(
-      {
-        ok: false,
-
-        error:
-          "Method not allowed"
-      },
-      405
-    );
+    await this.saveState(data);
+    return json(this.publicState(data, role, cid));
   }
 }
