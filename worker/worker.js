@@ -1,12 +1,5 @@
-// ============================================================
-// V18 ASOSIY DESIGN 2 - CLOUD SERVER
-// Version: 19.0-cloud
-// Google Sheets -> Cloudflare Worker -> Admin / Phone / Monitor
-// ============================================================
-
-const VERSION = "19.3-cloud";
-const SPREADSHEET_ID = "1IWyUdorge58MbvpNlB5Z08Rawm8AdoeHinxgjiFktF4";
-
+import {SheetCache,SPREADSHEET_ID} from './sheets.js';
+const VERSION='20.3-cloud';
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -16,33 +9,6 @@ const CORS_HEADERS = {
 };
 
 const APP_ROUTES = new Set(["/", "/index.html", "/admin", "/monitor", "/phone", "/tv"]);
-
-const SHEETS = [
-  {
-    code: "21010",
-    names: ["21010 Tibbiy qism 2026 (16)", "21010 Tibbiy qism (16)"],
-  },
-  {
-    code: "21111",
-    names: ["21111 Farroshlar (65)"],
-  },
-  {
-    code: "21113",
-    names: ["21113 Bog‘bon 2026 (36)", "21113 Bog‘bonlar 2026 (36)", "21113 Bog‘bonlar (36)"],
-  },
-  {
-    code: "21120",
-    names: ["21120 Umumiy Ovq. bo'l. (200)", "21120 Umumiy ovqatlanish (200)"],
-  },
-  {
-    code: "21130",
-    names: ["21130 Oziq ovqat ta'minoti (8)", "21130 Oziq-ovqat ta’minoti (8)", "21130 Oziq-ovqat ta‘minoti (8)"],
-  },
-  {
-    code: "21140",
-    names: ["21140 Katedj (17)", "21140 Yotoqxona majmuasi (17)"],
-  },
-];
 
 function json(data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data, null, 2), {
@@ -130,7 +96,7 @@ function sanitizeView(input) {
   if (!depts.includes(out.department)) out.department = "";
   if (!["", "0", "under8", "8", "over8"].includes(out.hours)) out.hours = "";
   if (!["", "all", "present", "absent", "hours"].includes(out.detail)) out.detail = "";
-  if (!["", "present", "absent", "rest"].includes(out.tableStatus)) out.tableStatus = "";
+  if (!["", "present", "absent", "rest", "unknown"].includes(out.tableStatus)) out.tableStatus = "";
 
   return out;
 }
@@ -142,178 +108,6 @@ function getRoleAndDevice(request) {
   if (!["computer", "phone", "monitor"].includes(role)) role = "computer";
 
   return { role, cid };
-}
-
-function gvizValue(cell) {
-  return cell?.v ?? cell?.f ?? null;
-}
-
-function gvizNumber(value) {
-  const n = Number(String(value ?? "").replace(",", "."));
-  return Number.isFinite(n) ? n : 0;
-}
-
-function parseGviz(text) {
-  const a = text.indexOf("{");
-  const b = text.lastIndexOf("}");
-  if (a < 0 || b < a) throw new Error("Google Sheets javobi noto‘g‘ri.");
-  return JSON.parse(text.slice(a, b + 1));
-}
-
-const MONTH_NAMES = new Set([
-  "Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun",
-  "Iyul", "Avgust", "Sentabr", "Oktabr", "Noyabr", "Dekabr",
-]);
-
-function normalizeGviz(obj, expectedCode) {
-  const rows = obj?.table?.rows || [];
-  const out = [];
-
-  // Google Sheetsdagi oy va bo‘lim kodi ko‘pincha blokning faqat
-  // birinchi qatorida yozilgan bo‘ladi. Keyingi xodim qatorlarida
-  // bu kataklar bo‘sh. Shuning uchun oldingi oy/kodni forward-fill qilamiz.
-  let currentMonth = "";
-  let currentDept = "";
-  let sawExpectedCode = false;
-
-  for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
-    const row = rows[rowIndex];
-    const c = (row?.c || []).map(gvizValue);
-
-    const rawMonth = String(c[1] ?? "").trim();
-    if (MONTH_NAMES.has(rawMonth)) currentMonth = rawMonth;
-
-    const rawDept = String(c[2] ?? "").trim();
-    if (/^\d{5}$/.test(rawDept)) {
-      currentDept = rawDept;
-      if (rawDept === String(expectedCode)) sawExpectedCode = true;
-    }
-
-    const tab = String(c[3] ?? "").trim();
-    const employee = String(c[4] ?? "").trim();
-    const shift = String(c[5] ?? "").trim();
-
-    // Noto‘g‘ri sheet nomi bo‘lsa GViz ba'zan boshqa tabni qaytaradi.
-    // Faqat kutilgan bo‘lim kodi ko‘rilgan va faol blok shu bo‘limga
-    // tegishli bo‘lgandagina xodim qatorini qabul qilamiz.
-    if (!sawExpectedCode || currentDept !== String(expectedCode)) continue;
-    // MUHIM: Tab No ustunida raqam va matn aralash (masalan 9254 va A531).
-    // Google Visualization API bunday aralash ustunda ayrim qiymatlarni null qiladi.
-    // Xodimni faqat tab raqami yo‘qolgani uchun tashlab yubormaymiz.
-    if (!currentMonth || !employee) continue;
-    if (/^tab\s*no$/i.test(tab) || /^xodim$/i.test(employee)) continue;
-
-    out.push({
-      m: currentMonth,
-      d: String(expectedCode),
-      e: employee,
-      tab,
-      sourceRow: rowIndex + 1,
-      s: shift,
-      g: gvizNumber(c[6]),
-      j: gvizNumber(c[9]),
-      x: gvizNumber(c[12]),
-      day: Array.from({ length: 31 }, (_, i) => c[i + 14] ?? null),
-    });
-  }
-
-  return out;
-}
-
-async function fetchSheetByName(name, expectedCode) {
-  const url =
-    `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq` +
-    `?tqx=out:json&sheet=${encodeURIComponent(name)}` +
-    `&tq=${encodeURIComponent("select *")}`;
-
-  const response = await fetch(url, {
-    headers: { "User-Agent": `V18-Dashboard-Cloud/${VERSION}` },
-    cf: { cacheTtl: 0, cacheEverything: false },
-  });
-
-  if (!response.ok) {
-    throw new Error(`${name}: HTTP ${response.status}`);
-  }
-
-  const text = await response.text();
-  const parsed = parseGviz(text);
-  const allRecords = normalizeGviz(parsed, expectedCode);
-
-  // Google GViz can silently return the first sheet when a requested
-  // sheet name is wrong. Accept only rows that belong to this department.
-  const records = allRecords.filter(
-    (row) => String(row.d) === String(expectedCode)
-  );
-
-  if (!records.length) {
-    const seenCodes = [
-      ...new Set(allRecords.map((row) => String(row.d)).filter(Boolean)),
-    ];
-    throw new Error(
-      `${name}: ${expectedCode} bo‘limi topilmadi` +
-      (seenCodes.length ? ` (javobdagi kodlar: ${seenCodes.join(", ")})` : "")
-    );
-  }
-
-  return records;
-}
-
-async function fetchDepartment(sheet) {
-  const errors = [];
-
-  for (const name of sheet.names) {
-    try {
-      const records = await fetchSheetByName(name, sheet.code);
-      return { code: sheet.code, sheet: name, records };
-    } catch (error) {
-      errors.push(String(error?.message || error));
-    }
-  }
-
-  throw new Error(`${sheet.code}: ${errors.join(" | ")}`);
-}
-
-async function getGoogleData() {
-  const settled = await Promise.allSettled(SHEETS.map(fetchDepartment));
-  const records = [];
-  const loaded = [];
-  const errors = [];
-
-  for (const item of settled) {
-    if (item.status === "fulfilled") {
-      loaded.push({
-        code: item.value.code,
-        sheet: item.value.sheet,
-        count: item.value.records.length,
-      });
-      records.push(...item.value.records);
-    } else {
-      errors.push(String(item.reason?.message || item.reason));
-    }
-  }
-
-  if (!records.length) {
-    throw new Error("Google Sheets ma’lumotlari olinmadi: " + errors.join("; "));
-  }
-
-  // Final safety: remove duplicate employee rows from alias/fallback requests.
-  const unique = [];
-  const seen = new Set();
-  for (const row of records) {
-    const identity = row.tab || `row:${row.sourceRow ?? ""}`;
-    const key = `${row.m}|${row.d}|${identity}|${row.e}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    unique.push(row);
-  }
-
-  return {
-    records: unique,
-    refreshedAt: new Date().toISOString(),
-    source: "google-sheets-cloud",
-    loaded,
-    errors,
-  };
 }
 
 async function serveIndex(request, env) {
@@ -390,7 +184,7 @@ export default {
       if (path === "/api/health") {
         return json({
           ok: true,
-          service: "V18 Asosiy design 2 Cloud Server",
+          service: "V20 Asosiy design 3 Cloud Server",
           version: VERSION,
           computerRequired: false,
           durableObjectConfigured: Boolean(env?.V18_STATE),
@@ -400,7 +194,7 @@ export default {
       }
 
       if (path === "/api/google-test") {
-        const data = await getGoogleData();
+        const data = await (await env.V18_STATE.get(env.V18_STATE.idFromName('main')).fetch('https://internal.v18/data')).json();
         const countsByMonth = {};
         for (const row of data.records) {
           if (!countsByMonth[row.m]) countsByMonth[row.m] = {};
@@ -419,7 +213,7 @@ export default {
       }
 
       if (path === "/api/google-data") {
-        return json(await getGoogleData());
+        return withNoStore(await env.V18_STATE.get(env.V18_STATE.idFromName('main')).fetch('https://internal.v18/data'));
       }
 
       if (path === "/api/data") {
@@ -453,6 +247,7 @@ export class V18State {
   constructor(state, env) {
     this.state = state;
     this.env = env;
+    this.sheetCache = new SheetCache();
   }
 
   async loadState() {
@@ -498,21 +293,28 @@ export class V18State {
       view,
       active,
       isController: active,
+      hasController: Boolean(data.devices?.[src]?.owner),
     };
   }
 
   async fetch(request) {
     const url = new URL(request.url);
 
+    if (url.pathname === '/data') {
+      try {return json(await this.sheetCache.get());}
+      catch(e){return json({error:e.message},503);}
+    }
     if (url.pathname !== "/state") {
       return json({ error: "State endpoint topilmadi." }, 404);
     }
 
     const { role, cid } = getRoleAndDevice(request);
-    let data = this.expire(await this.loadState());
+    const loaded = await this.loadState();
+    const revision = loaded.revision;
+    let data = this.expire(loaded);
 
     if (request.method === "GET") {
-      await this.saveState(data);
+      if(data.revision !== revision) await this.saveState(data);
       return json(this.publicState(data, role, cid));
     }
 
@@ -530,7 +332,9 @@ export class V18State {
     const now = Date.now();
     const action = body.action;
 
-    if (action === "claim" && role !== "monitor") {
+    if(role === 'monitor' || !cid) return json({error:'Monitor faqat ko‘rsatadi.'},403);
+    if (action === "claim") {
+      if(body.onlyIfUnowned && data.devices?.[data.source]?.owner) return json({error:'Boshqaruv boshqa qurilmada.'},409);
       const previousView =
         data.devices?.[data.source]?.view || defaultView();
 

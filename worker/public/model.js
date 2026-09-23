@@ -26,7 +26,7 @@ export function validateView(v){
   else {if(typeof v[k]!=='string'||v[k].length>(k==='query'?80:30))throw Error('Filtr noto‘g‘ri.');out[k]=v[k];}
  }
  if(out.month<0||out.month>11||out.day<1||out.day>daysInMonth(out.month)||out.page<1||out.page>3)throw Error('Sana yoki sahifa noto‘g‘ri.');
- if(!['',...DEPTS.map(x=>x.code)].includes(out.department)||!['','0','under8','8','over8'].includes(out.hours)||!['','all','present','absent','hours'].includes(out.detail)||!['','present','absent','rest'].includes(out.tableStatus))throw Error('Filtr qiymati noto‘g‘ri.');
+ if(!['',...DEPTS.map(x=>x.code)].includes(out.department)||!['','0','under8','8','over8'].includes(out.hours)||!['','all','present','absent','hours'].includes(out.detail)||!['','present','absent','rest','unknown'].includes(out.tableStatus))throw Error('Filtr qiymati noto‘g‘ri.');
  for(const k of ['shift','tableShift'])if(out[k]&&!/^[\p{L}\p{N} ._\/-]{1,30}$/u.test(out[k]))throw Error('Smena noto‘g‘ri.');
  for(const k of ['minHours','maxHours'])if(out[k]!==''&&(!/^\d+(\.\d+)?$/.test(out[k])||Number(out[k])>744))throw Error('Soat chegarasi noto‘g‘ri.');
  return out;
@@ -36,7 +36,7 @@ function number(v){const n=Number(String(v??'').replace(',','.'));return Number.
 function dayInfo(raw){
  const code=String(raw??'').trim().toUpperCase();
  const match=code.match(/^([0-9]+(?:[.,][0-9]+)?)/);const hours=match?number(match[1]):0;
- const status=hours>0||(/[DN]$/.test(code)&&match)?'present':code==='V'||code===''?'rest':'absent';
+ const status=hours>0||(/[DN]$/.test(code)&&match)?'present':code===''?'unknown':code==='V'?'rest':'absent';
  return {code:code||'—',hours,status};
 }
 
@@ -54,3 +54,9 @@ export function filteredEmployees(v,ignoreDepartment=false){return employees(v).
 export function detailEmployees(v){let rs=filteredEmployees(v);if(['present','absent'].includes(v.detail))rs=rs.filter(r=>r.status===v.detail);const q=v.query.trim().toLowerCase();return rs.filter(r=>(!q||`${r.name} ${r.tab} ${r.departmentName}`.toLowerCase().includes(q))&&(!v.tableShift||r.shift===v.tableShift)&&(!v.tableStatus||r.status===v.tableStatus)&&(v.minHours===''||r.totalHours>=Number(v.minHours))&&(v.maxHours===''||r.totalHours<=Number(v.maxHours))).sort((a,b)=>v.detail==='hours'?b.totalHours-a.totalHours:a.department.localeCompare(b.department,'uz')||a.name.localeCompare(b.name,'uz'));}
 export function stats(rs){const present=rs.filter(r=>r.status==='present').length,absent=rs.filter(r=>r.status==='absent').length,rest=rs.filter(r=>r.status==='rest').length;return {total:rs.length,present,absent,rest,rate:present+absent?present/(present+absent)*100:null};}
 export function shiftsFor(v){return [...new Set(employees(v).filter(r=>!v.department||r.department===v.department).map(r=>r.shift).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'uz',{numeric:true}));}
+
+export function availableMonths(){return MONTHS.map((_,i)=>i).filter(i=>liveRecords.some(r=>r.m===MONTHS[i]));}
+export function recommendedMonth(){
+ const available=availableMonths();const complete=available.filter(i=>DEPTS.every(d=>liveRecords.some(r=>r.m===MONTHS[i]&&r.d===d.code)));
+ return complete.at(-1)??available.at(-1)??null;
+}
