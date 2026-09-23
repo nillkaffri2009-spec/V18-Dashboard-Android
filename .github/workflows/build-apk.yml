@@ -1,10 +1,13 @@
-name: Build V19.5 Cloud Phone APK - Auto Reconnect
+name: Build V20 Asosiy 3 Variant 3 APK
 
 on:
   workflow_dispatch:
   push:
     paths:
       - ".github/workflows/build-apk.yml"
+
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -31,12 +34,12 @@ jobs:
       # =========================================================
       - name: Create Android project
         run: |
-          echo "=== Creating V18 Phone LIVE Android project ==="
+          echo "=== Creating V20 Phone LIVE Android project ==="
 
           rm -rf app
           rm -rf release
 
-          mkdir -p app/src/main/java/com/v18/dashboard
+          mkdir -p app/src/main/java/com/mamuriyat/asosiy3/v20
           mkdir -p app/src/main/res/values
           mkdir -p release
 
@@ -60,7 +63,7 @@ jobs:
               }
           }
 
-          rootProject.name = "V18Dashboard"
+          rootProject.name = "V20Dashboard"
           include(":app")
           EOF
 
@@ -91,16 +94,16 @@ jobs:
           }
 
           android {
-              namespace 'com.v18.dashboard'
+              namespace 'com.mamuriyat.asosiy3.v20'
               compileSdk 35
 
               defaultConfig {
-                  applicationId 'com.v18.dashboard'
+                  applicationId 'com.mamuriyat.asosiy3.v20'
                   minSdk 23
                   targetSdk 35
 
-                  versionCode 19500
-                  versionName '19.5-cloud'
+                  versionCode 20003
+                  versionName '20.3'
               }
           }
           EOF
@@ -117,7 +120,7 @@ jobs:
 
               <application
                   android:theme="@style/AppTheme"
-                  android:label="V18 Dashboard"
+                  android:label="V20 Asosiy 3"
                   android:usesCleartextTraffic="false"
                   android:allowBackup="false"
                   android:supportsRtl="true">
@@ -172,8 +175,8 @@ jobs:
           # =====================================================
           # MainActivity.java
           # =====================================================
-          cat > app/src/main/java/com/v18/dashboard/MainActivity.java <<'EOF'
-          package com.v18.dashboard;
+          cat > app/src/main/java/com/mamuriyat/asosiy3/v20/MainActivity.java <<'EOF'
+          package com.mamuriyat.asosiy3.v20;
 
           import android.app.Activity;
           import android.graphics.Bitmap;
@@ -210,7 +213,7 @@ jobs:
               // V18 SERVER
               // =================================================
               private static final String SERVER_URL =
-                      "https://v18-dashboard-server.nill-kaffri-2009.workers.dev/phone?mode=phone";
+                      "https://v18-dashboard-server.nill-kaffri-2009.workers.dev/phone?mode=phone&v=20.3";
 
               @Override
               protected void onCreate(Bundle savedInstanceState) {
@@ -258,8 +261,8 @@ jobs:
                   settings.setBlockNetworkLoads(false);
 
                   // File/content
-                  settings.setAllowFileAccess(true);
-                  settings.setAllowContentAccess(true);
+                  settings.setAllowFileAccess(false);
+                  settings.setAllowContentAccess(false);
 
                   // Responsive dashboard
                   settings.setLoadWithOverviewMode(true);
@@ -290,7 +293,7 @@ jobs:
                   String oldUA = settings.getUserAgentString();
 
                   settings.setUserAgentString(
-                          oldUA + " V18DashboardPhone/19.5"
+                          oldUA + " V20DashboardPhone/20.3"
                   );
 
                   webView.setWebChromeClient(
@@ -325,7 +328,9 @@ jobs:
                           WebView view,
                           WebResourceRequest request) {
 
-                      return false;
+                      android.net.Uri target = request.getUrl();
+                      return !("https".equals(target.getScheme()) &&
+                              "v18-dashboard-server.nill-kaffri-2009.workers.dev".equals(target.getHost()));
                   }
 
                   @Override
@@ -383,19 +388,9 @@ jobs:
                   networkCallback = new ConnectivityManager.NetworkCallback() {
                       @Override
                       public void onAvailable(Network network) {
-                          reconnectHandler.postDelayed(() -> reconnectDashboard(), 900);
+                          scheduleReconnect();
                       }
 
-                      @Override
-                      public void onCapabilitiesChanged(
-                              Network network,
-                              NetworkCapabilities networkCapabilities) {
-
-                          if (networkCapabilities.hasCapability(
-                                  NetworkCapabilities.NET_CAPABILITY_INTERNET)) {
-                              reconnectHandler.postDelayed(() -> reconnectDashboard(), 500);
-                          }
-                      }
                   };
 
                   try {
@@ -409,6 +404,11 @@ jobs:
                       }
                   } catch (Exception ignored) {
                   }
+              }
+
+              private void scheduleReconnect() {
+                  reconnectHandler.removeCallbacksAndMessages(null);
+                  reconnectHandler.postDelayed(() -> reconnectDashboard(), 900);
               }
 
               private void reconnectDashboard() {
@@ -456,7 +456,7 @@ jobs:
                               new TextView(this);
 
                       title.setText(
-                              "V18 Dashboard серверига уланиб бўлмади"
+                              "V20 Asosiy 3 серверига уланиб бўлмади"
                       );
 
                       title.setTextSize(24);
@@ -594,7 +594,7 @@ jobs:
           echo "======================================"
           echo "ANDROID PROJECT CREATED"
           echo "SERVER:"
-          echo "https://v18-dashboard-server.nill-kaffri-2009.workers.dev/phone?mode=phone"
+          echo "https://v18-dashboard-server.nill-kaffri-2009.workers.dev/phone?mode=phone&v=20.3"
           echo "======================================"
 
       # =========================================================
@@ -635,13 +635,19 @@ jobs:
       # =========================================================
       # 6. RENAME APK
       # =========================================================
+      - name: Verify APK signature and package
+        run: |
+          TOOLS=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)
+          "$TOOLS/apksigner" verify --verbose app/build/outputs/apk/debug/app-debug.apk
+          "$TOOLS/aapt" dump badging app/build/outputs/apk/debug/app-debug.apk | head -5
+
       - name: Rename APK
         run: |
           mkdir -p release
 
           cp \
             app/build/outputs/apk/debug/app-debug.apk \
-            release/V18-Dashboard-V19.5-CLOUD-AUTORECONNECT.apk
+            release/V20_ASOSIY_3_PHONE_3_VARIANT.apk
 
           echo "=== RELEASE APK ==="
 
@@ -653,7 +659,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: V18-DASHBOARD-V19.5-CLOUD-AUTORECONNECT
-          path: release/V18-Dashboard-V19.5-CLOUD-AUTORECONNECT.apk
+          name: V20_ASOSIY_3_PHONE_3_VARIANT
+          path: release/V20_ASOSIY_3_PHONE_3_VARIANT.apk
           if-no-files-found: error
           retention-days: 30
