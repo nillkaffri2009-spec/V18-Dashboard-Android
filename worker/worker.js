@@ -1,5 +1,5 @@
 import {SheetCache,SPREADSHEET_ID} from './sheets.js';
-const VERSION='20.4-cloud';
+const VERSION='20.5-cloud';
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -59,6 +59,10 @@ function defaultView() {
     minHours: "",
     maxHours: "",
     scrollRatio: 0,
+    rosterScrollRatio: 0,
+    employeeScrollRatio: 0,
+    deptTableScrollRatio: 0,
+    kpiTableScrollRatio: 0,
   };
 }
 
@@ -89,7 +93,7 @@ function sanitizeView(input) {
     if (["month", "day", "page"].includes(key)) {
       const n = Number(input[key]);
       if (Number.isInteger(n)) out[key] = n;
-    } else if (key === "scrollRatio") {
+    } else if (["scrollRatio","rosterScrollRatio","employeeScrollRatio","deptTableScrollRatio","kpiTableScrollRatio"].includes(key)) {
       const n = Number(input[key]);
       if (Number.isFinite(n)) out[key] = Math.min(1, Math.max(0, n));
     } else {
@@ -196,7 +200,7 @@ export default {
           ok: true,
           service: "V20 Asosiy design 3 Cloud Server",
           version: VERSION,
-          assetVersion: "20.4-final12",
+          assetVersion: "20.5-final14",
           computerRequired: false,
           durableObjectConfigured: Boolean(env?.V18_STATE),
           assetsConfigured: Boolean(env?.ASSETS),
