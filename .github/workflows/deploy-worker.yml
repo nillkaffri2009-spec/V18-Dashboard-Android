@@ -42,13 +42,13 @@ jobs:
           done
           test "$DATA_OK" = "1"
 
-      - name: Build Final12-style V20 Final 16 package
+      - name: Build V20 Final 17 cloud-monitor-sync package
         run: python tools/build_full_release.py
 
-      - name: Upload V20 Final 16 ZIP
+      - name: Upload V20 Final 17 ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: V20_ASOSIY_3_FINAL_16_FINAL12_START_43TV_FIXED
-          path: release_full/V20_ASOSIY_3_FINAL_16_FINAL12_START_43TV_FIXED.zip
+          name: V20_ASOSIY_3_FINAL_17_CLOUD_MONITOR_SYNC_FIXED
+          path: release_full/V20_ASOSIY_3_FINAL_17_CLOUD_MONITOR_SYNC_FIXED.zip
           if-no-files-found: error
           retention-days: 30
