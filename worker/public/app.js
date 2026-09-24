@@ -5,7 +5,7 @@ const labels={present:'Ishda',absent:'Yo‘q',rest:'Dam olish',unknown:'Kiritilm
 const roleNames={computer:'Admin-kompyuter',phone:'Telefon',monitor:'Monitor'};
 const SHEET_ID='1IWyUdorge58MbvpNlB5Z08Rawm8AdoeHinxgjiFktF4';
 const CONFIG=window.V20_CONFIG||{};
-const APP_BUILD='20.4-cloud';
+const APP_BUILD='20.5-cloud';
 const isPreview=Boolean(CONFIG.preview);
 const apiPath=path=>(CONFIG.apiBase||'').replace(/\/$/,'')+path;
 const url=new URL(location.href);
@@ -14,7 +14,7 @@ let role=lockedMonitor?'monitor':(['computer','phone'].includes(url.searchParams
 if(!lockedMonitor&&!['computer','phone'].includes(role))role='computer';
 const newDeviceId=()=>window.crypto?.randomUUID?.()||`device-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
 let clientId;try{clientId=sessionStorage.getItem('asosiyDevice');if(!clientId){clientId=newDeviceId();sessionStorage.setItem('asosiyDevice',clientId);}}catch{clientId=newDeviceId();}
-let view={...DEFAULT_VIEW},remote=null,connected=false,active=false,busy=false,dirty=false,localVersion=0,lastHeartbeat=0,pollBusy=false,dataBusy=false,dataOnline=false,noticeTimer,initialMonthChosen=false,lastLiveData=null,everLoaded=false,applyingRemoteScroll=false,scrollSendTimer=null;
+let view={...DEFAULT_VIEW},remote=null,connected=false,active=false,busy=false,dirty=false,localVersion=0,lastHeartbeat=0,pollBusy=false,dataBusy=false,dataOnline=false,noticeTimer,initialMonthChosen=false,lastLiveData=null,everLoaded=false,applyingRemoteScroll=false,scrollSendTimers={};
 $('deviceRole').value=role;
 if(CONFIG.snapshot?.records?.length)setLiveRecords(CONFIG.snapshot.records);
 if(isPreview){view={...view,month:CONFIG.previewMonth??6,day:1};$('sourceTag').textContent='ZAXIRA MA’LUMOT · KO‘RINISH';$('sourceTag').className='offline';$('dataStatus').textContent='Dizaynni ko‘rish · ZIP ichidagi saqlangan ma’lumot · LIVE emas';$('versionLabel').textContent='V20.3 · Asosiy 3 · Ko‘rinish';}
@@ -40,25 +40,38 @@ function uiPermissions(){
  $('connection').textContent=connected?'● Ulangan':'● Aloqa yo‘q · qayta urinilmoqda';$('connection').className=connected?'live':'offline';
  $('controlSource').textContent=`Boshqaruv: ${roleNames[remote?.source||'computer']}${role==='monitor'?' · faqat ko‘rish':active?' · sizda':' · kuzatuv'}`;
 }
-function getScrollRatio(){
- const max=Math.max(0,document.documentElement.scrollHeight-window.innerHeight);
- return max?Math.min(1,Math.max(0,window.scrollY/max)):0;
+function ratioFor(el){
+ if(!el){const max=Math.max(0,document.documentElement.scrollHeight-window.innerHeight);return max?Math.min(1,Math.max(0,window.scrollY/max)):0;}
+ const max=Math.max(0,el.scrollHeight-el.clientHeight);return max?Math.min(1,Math.max(0,el.scrollTop/max)):0;
+}
+function applyRatio(el,ratio){
+ ratio=Number(ratio);if(!Number.isFinite(ratio))return;
+ const max=el?Math.max(0,el.scrollHeight-el.clientHeight):Math.max(0,document.documentElement.scrollHeight-window.innerHeight);
+ const top=max*Math.min(1,Math.max(0,ratio));
+ const current=el?el.scrollTop:window.scrollY;
+ if(Math.abs(current-top)<=2)return;
+ applyingRemoteScroll=true;
+ if(el)el.scrollTop=top;else window.scrollTo(0,top);
+ requestAnimationFrame(()=>{applyingRemoteScroll=false;});
 }
 function applyRemoteScroll(){
  if(isPreview||(active&&role!=='monitor'))return;
- const ratio=Number(view.scrollRatio);if(!Number.isFinite(ratio))return;
  requestAnimationFrame(()=>{
-  const max=Math.max(0,document.documentElement.scrollHeight-window.innerHeight);const top=max*Math.min(1,Math.max(0,ratio));
-  if(Math.abs(window.scrollY-top)>2){applyingRemoteScroll=true;window.scrollTo(0,top);requestAnimationFrame(()=>{applyingRemoteScroll=false;});}
+  applyRatio(null,view.scrollRatio);
+  applyRatio($('rosterScroll'),view.rosterScrollRatio);
+  applyRatio($('employeeScroll'),view.employeeScrollRatio);
+  applyRatio($('deptTableScroll'),view.deptTableScrollRatio);
+  applyRatio($('kpiTableScroll'),view.kpiTableScrollRatio);
  });
 }
-function queueScrollSync(){
+function queueScrollField(field,el){
  if(applyingRemoteScroll||lockedMonitor||isPreview||!active||!connected)return;
- clearTimeout(scrollSendTimer);scrollSendTimer=setTimeout(()=>{
-  const ratio=getScrollRatio();if(Math.abs(ratio-Number(view.scrollRatio||0))<0.002)return;
-  view={...view,scrollRatio:ratio};dirty=true;localVersion++;void flush();
- },90);
+ clearTimeout(scrollSendTimers[field]);scrollSendTimers[field]=setTimeout(()=>{
+  const ratio=ratioFor(el);if(Math.abs(ratio-Number(view[field]||0))<0.002)return;
+  view={...view,[field]:ratio};dirty=true;localVersion++;void flush();
+ },25);
 }
+function queueScrollSync(){queueScrollField('scrollRatio',null);}
 function render(){
  const monthRows=getLiveRecords().filter(r=>r.m===MONTHS[view.month]);
  const monthAvailable=monthRows.length>0;
@@ -121,7 +134,7 @@ function renderDetail(){
  const label={all:'Umumiy xodimlar',present:'Ishdagilar',absent:'Yo‘qlar',hours:'Ish soatlari'}[view.detail];
  $('detailTitle').textContent=label+' — '+(DEPTS.find(d=>d.code===view.department)?.name||'Barcha bo‘limlar');
  $('absenceTitle').textContent=`${rs.length} / ${base.length} xodim · ${view.day}-${MONTHS[view.month].toLowerCase()} 2026`;
- if(!$('employeeBody'))$('employees').innerHTML=`<div class="list-filters"><label>Ism yoki tabel raqami<input id="employeeSearch" placeholder="Ism ёки табель рақами" maxlength="80"></label><label>Smena<select id="tableShift"><option value="">Barcha</option></select></label><label>Holat<select id="tableStatus"><option value="">Barcha</option><option value="present">Ishda</option><option value="absent">Yo‘q</option><option value="rest">Dam olish</option><option value="unknown">Kiritilmagan</option></select></label><label>Oylik soat: dan<input id="minHours" type="number" min="0" max="744" step="1" placeholder="0"></label><label>gacha<input id="maxHours" type="number" min="0" max="744" step="1" placeholder="744"></label></div><div class="employee-scroll"><table class="employee-table"><thead><tr><th>№</th><th>Tab. №</th><th>Xodim nomi</th><th>Bo‘lim</th><th>Smena</th><th>Kod</th><th>Holat</th><th>Kun / soat</th><th>Fond</th><th>Ish soat</th><th>Ortiqcha</th><th>Jami / oy</th></tr></thead><tbody id="employeeBody"></tbody></table></div>`;
+ if(!$('employeeBody'))$('employees').innerHTML=`<div class="list-filters"><label>Ism yoki tabel raqami<input id="employeeSearch" placeholder="Ism ёки табель рақами" maxlength="80"></label><label>Smena<select id="tableShift"><option value="">Barcha</option></select></label><label>Holat<select id="tableStatus"><option value="">Barcha</option><option value="present">Ishda</option><option value="absent">Yo‘q</option><option value="rest">Dam olish</option><option value="unknown">Kiritilmagan</option></select></label><label>Oylik soat: dan<input id="minHours" type="number" min="0" max="744" step="1" placeholder="0"></label><label>gacha<input id="maxHours" type="number" min="0" max="744" step="1" placeholder="744"></label></div><div class="employee-scroll" id="employeeScroll"><table class="employee-table"><thead><tr><th>№</th><th>Tab. №</th><th>Xodim nomi</th><th>Bo‘lim</th><th>Smena</th><th>Kod</th><th>Holat</th><th>Kun / soat</th><th>Fond</th><th>Ish soat</th><th>Ortiqcha</th><th>Jami / oy</th></tr></thead><tbody id="employeeBody"></tbody></table></div>`;
  const detailShifts=[...new Set(base.map(r=>r.shift).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'uz',{numeric:true}));if(view.tableShift&&!detailShifts.includes(view.tableShift))detailShifts.push(view.tableShift);$('tableShift').innerHTML='<option value="">Barcha</option>'+detailShifts.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
  for(const [id,k] of [['employeeSearch','query'],['tableShift','tableShift'],['tableStatus','tableStatus'],['minHours','minHours'],['maxHours','maxHours']])if(document.activeElement!==$(id))$(id).value=view[k];
  $('employeeBody').innerHTML=rs.map((r,i)=>`<tr data-employee-id="${esc(r.id)}"><td>${i+1}</td><td>${esc(r.tab)}</td><td>${esc(r.name)}</td><td>${esc(r.departmentName)}</td><td>${esc(r.shift)}</td><td>${esc(r.code)}</td><td><span class="pill ${r.status}">${labels[r.status]}</span></td><td>${r.hours}</td><td>${r.fond}</td><td>${r.work}</td><td>${r.overtime}</td><td><b>${r.totalHours}</b></td></tr>`).join('')||'<tr><td colspan="12" class="empty">Filtr bo‘yicha xodim topilmadi. Filtrlarni tozalab ko‘ring.</td></tr>';
@@ -221,5 +234,18 @@ async function checkBuildVersion(){
 window.addEventListener('online',()=>{if(!isPreview){void checkBuildVersion();void poll();void syncData();}});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!isPreview){void checkBuildVersion();void poll();void syncData();}});
 window.addEventListener('scroll',queueScrollSync,{passive:true});
+document.addEventListener('scroll',e=>{
+ const t=e.target;if(!(t instanceof Element))return;
+ if(t.id==='rosterScroll')queueScrollField('rosterScrollRatio',t);
+ else if(t.id==='employeeScroll')queueScrollField('employeeScrollRatio',t);
+ else if(t.id==='deptTableScroll')queueScrollField('deptTableScrollRatio',t);
+ else if(t.id==='kpiTableScroll')queueScrollField('kpiTableScrollRatio',t);
+},{capture:true,passive:true});
+$('manualRefresh').addEventListener('click',async()=>{
+ if(lockedMonitor)return;
+ const b=$('manualRefresh');b.classList.add('refreshing');b.disabled=true;notify('Ma’lumotlar yangilanmoqda…');
+ try{await Promise.all([syncData(),checkBuildVersion()]);notify('Ma’lumotlar yangilandi.');}
+ finally{b.classList.remove('refreshing');b.disabled=false;}
+});
 updateClock();setInterval(updateClock,1000);render();void clearLegacyCaches();
-if(!isPreview){void checkBuildVersion();void syncData();if(url.searchParams.get('take_control')==='1'&&!lockedMonitor)void action('claim');else void poll();setInterval(checkBuildVersion,2000);setInterval(syncData,2000);setInterval(poll,700);}
+if(!isPreview){void checkBuildVersion();void syncData();if(url.searchParams.get('take_control')==='1'&&!lockedMonitor)void action('claim');else void poll();setInterval(checkBuildVersion,2000);setInterval(syncData,2000);setInterval(()=>{if(role==='monitor')void poll();},250);setInterval(()=>{if(role!=='monitor')void poll();},700);}
