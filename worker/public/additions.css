@@ -91,3 +91,96 @@
   .monitor-mode .daily-grid{gap:16px}
   .monitor-mode .roster-scroll{max-height:min(46vh,560px)}
 }
+
+
+/* V20.7 FINAL 16 — 43-inch BALANCED TV PROFILE
+   Target: 1920x1080-class 43" display viewed from about 2 metres.
+   Large enough to read, compact enough to keep the main dashboard on screen. */
+.monitor-mode{
+  --tv-body:20px;
+  --tv-small:17px;
+  --tv-title:28px;
+  --tv-nav:21px;
+  --tv-heading:22px;
+  --tv-kpi:56px;
+  --tv-clock:38px;
+  font-size:var(--tv-body);
+  line-height:1.28;
+}
+.monitor-mode .app{gap:10px;padding:8px 14px 0}
+.monitor-mode .header{min-height:86px;padding:10px 14px;gap:14px}
+.monitor-mode .brand{gap:12px}
+.monitor-mode .brand-icon{font-size:42px}
+.monitor-mode .brand h1{font-size:var(--tv-title);line-height:1.12}
+.monitor-mode .brand h1 span{font-size:var(--tv-title)}
+.monitor-mode .brand p{font-size:14px;line-height:1.2;letter-spacing:1.2px;margin-top:5px}
+.monitor-mode .header-status{min-width:220px;font-size:var(--tv-small);gap:4px}
+.monitor-mode .header-status strong{font-size:18px}
+.monitor-mode .header-status small{font-size:15px;line-height:1.2}
+.monitor-mode .clock{min-width:135px;padding-left:14px;gap:1px}
+.monitor-mode .clock span,.monitor-mode .clock small{font-size:14px}
+.monitor-mode .clock strong{font-size:var(--tv-clock);line-height:1}
+.monitor-mode .nav{gap:8px}
+.monitor-mode .nav button{height:58px;font-size:var(--tv-nav);line-height:1.1;padding:8px}
+.monitor-mode .nav button span{font-size:24px;margin-right:7px}
+.monitor-mode .nav .utility{font-size:15px;height:58px;padding:7px 10px}
+.monitor-mode .filter-strip{gap:9px}
+.monitor-mode .filter-strip>label,.monitor-mode .date-filter{font-size:18px;padding:9px 12px;gap:6px}
+.monitor-mode .filter-strip select,.monitor-mode .date-filter #day{height:43px;font-size:18px;padding:6px 10px}
+.monitor-mode .date-filter #day{width:58px}
+.monitor-mode .day-label{font-size:15px}
+.monitor-mode .coverage-wrap{font-size:16px}
+.monitor-mode .view-heading{min-height:30px;gap:10px;font-size:16px}
+.monitor-mode .view-heading h2{font-size:18px}
+.monitor-mode .view-heading #pageNo{font-size:16px}
+.monitor-mode .cards{gap:10px}
+.monitor-mode .kpi{min-height:108px;padding:11px 10px;gap:14px}
+.monitor-mode .kpi .lbl{font-size:20px}
+.monitor-mode .kpi .val{font-size:var(--tv-kpi);line-height:1;margin-top:4px}
+.monitor-mode .card-icon{font-size:38px!important}
+.monitor-mode .daily-grid{gap:10px;grid-template-columns:1.12fr 1fr;min-height:0}
+.monitor-mode .panel-heading{padding:10px 12px;gap:8px}
+.monitor-mode .panel-heading h3,.monitor-mode .box h3{font-size:var(--tv-heading);line-height:1.15}
+.monitor-mode .panel-heading span{font-size:16px}
+.monitor-mode .panel-heading button{font-size:16px;padding:6px 9px}
+.monitor-mode .roster-scroll{max-height:350px;margin:0 7px}
+.monitor-mode .roster-table{font-size:19px;line-height:1.2}
+.monitor-mode .roster-table th{font-size:17px;padding:9px 7px}
+.monitor-mode .roster-table td{font-size:19px;padding:10px 7px}
+.monitor-mode .roster-table td:nth-child(3){font-size:17px}
+.monitor-mode .pill{font-size:17px}
+.monitor-mode .panel-note{font-size:15px;padding:5px 10px;line-height:1.25}
+.monitor-mode .barbox{padding:8px 13px}
+.monitor-mode .barrow{grid-template-columns:minmax(165px,1fr) minmax(130px,1.45fr) 70px;gap:10px;padding:10px 2px;font-size:18px}
+.monitor-mode .barrow strong{font-size:18px}
+.monitor-mode .track{height:20px}
+.monitor-mode .mini-stats{gap:7px;padding:7px 9px 10px}
+.monitor-mode .mini-stats>div{padding:8px 6px;gap:4px}
+.monitor-mode .mini-stats span,.monitor-mode .mini-stats small{font-size:15px}
+.monitor-mode .mini-stats strong{font-size:30px}
+.monitor-mode .department-summary summary{font-size:17px;padding:8px 12px}
+.monitor-mode .summary-grid{grid-template-columns:250px 1fr;gap:10px;padding:8px}
+.monitor-mode .side-head{font-size:19px;padding:10px}
+.monitor-mode .side-sub,.monitor-mode .side-row{font-size:17px;grid-template-columns:64px 1fr 60px}
+.monitor-mode .side-sub>div,.monitor-mode .side-row>div{padding:9px 6px}
+.monitor-mode .tbl,.monitor-mode .employee-table{font-size:18px}
+.monitor-mode .tbl th,.monitor-mode .tbl td,.monitor-mode .employee-table th,.monitor-mode .employee-table td{padding:9px 8px;line-height:1.2}
+.monitor-mode .detailbar{padding:7px 10px}
+.monitor-mode .detailname{font-size:22px}
+.monitor-mode .detailbar>span:last-child{font-size:16px}
+.monitor-mode .list-filters{padding:9px;gap:8px}
+.monitor-mode .list-filters label{font-size:16px}
+.monitor-mode .list-filters input,.monitor-mode .list-filters select{font-size:17px;min-height:40px}
+.monitor-mode .shift h3 button{font-size:21px;padding:11px}
+.monitor-mode .shiftrow{font-size:18px;grid-template-columns:105px 1fr 125px}
+.monitor-mode .shiftrow>div{padding:10px}
+.monitor-mode .kpi-totals>div{font-size:16px}
+.monitor-mode .kpi-totals strong{font-size:32px}
+.monitor-mode .footer{font-size:14px;padding:8px 10px}
+.monitor-mode #notice:not(:empty){font-size:18px;padding:12px 18px}
+@media (max-height:900px) and (min-width:1200px){
+  .monitor-mode .header{min-height:80px;padding-top:8px;padding-bottom:8px}
+  .monitor-mode .kpi{min-height:98px}
+  .monitor-mode .roster-scroll{max-height:310px}
+  .monitor-mode .brand p{display:none}
+}
