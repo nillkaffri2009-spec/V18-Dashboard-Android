@@ -1,5 +1,5 @@
 import {SheetCache,SPREADSHEET_ID} from './sheets.js';
-const VERSION='20.6-cloud';
+const VERSION='20.7-cloud';
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -200,7 +200,7 @@ export default {
           ok: true,
           service: "V20 Asosiy design 3 Cloud Server",
           version: VERSION,
-          assetVersion: "20.6-final15",
+          assetVersion: "20.7-final16",
           computerRequired: false,
           durableObjectConfigured: Boolean(env?.V18_STATE),
           assetsConfigured: Boolean(env?.ASSETS),
