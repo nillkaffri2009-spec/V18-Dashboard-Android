@@ -10,7 +10,7 @@ export const DEPTS=[
 ].map(([code,name,sheet])=>({code,name,sheet}));
 
 const now=new Date();
-export const DEFAULT_VIEW={month:now.getFullYear()===2026?now.getMonth():0,day:now.getFullYear()===2026?now.getDate():1,page:1,department:'',shift:'',hours:'',detail:'',query:'',tableShift:'',tableStatus:'',minHours:'',maxHours:'',scrollRatio:0};
+export const DEFAULT_VIEW={month:now.getFullYear()===2026?now.getMonth():0,day:now.getFullYear()===2026?now.getDate():1,page:1,department:'',shift:'',hours:'',detail:'',query:'',tableShift:'',tableStatus:'',minHours:'',maxHours:'',scrollRatio:0,rosterScrollRatio:0,employeeScrollRatio:0,deptTableScrollRatio:0,kpiTableScrollRatio:0};
 let liveRecords=[];
 
 export const daysInMonth=m=>new Date(2026,m+1,0).getDate();
@@ -23,7 +23,7 @@ export function validateView(v){
  for(const k of Object.keys(out)){
   if(!(k in v))continue;
   if(['month','day','page'].includes(k)){if(!Number.isInteger(v[k]))throw Error('Sana noto‘g‘ri.');out[k]=v[k];}
-  else if(k==='scrollRatio'){const n=Number(v[k]);if(!Number.isFinite(n))throw Error('Scroll noto‘g‘ri.');out[k]=Math.min(1,Math.max(0,n));}
+  else if(['scrollRatio','rosterScrollRatio','employeeScrollRatio','deptTableScrollRatio','kpiTableScrollRatio'].includes(k)){const n=Number(v[k]);if(!Number.isFinite(n))throw Error('Scroll noto‘g‘ri.');out[k]=Math.min(1,Math.max(0,n));}
   else {if(typeof v[k]!=='string'||v[k].length>(k==='query'?80:30))throw Error('Filtr noto‘g‘ri.');out[k]=v[k];}
  }
  if(out.month<0||out.month>11||out.day<1||out.day>daysInMonth(out.month)||out.page<1||out.page>3)throw Error('Sana yoki sahifa noto‘g‘ri.');
