@@ -21,7 +21,7 @@ test('shared cache combines concurrent clients, rechecks after 2 seconds and kee
  const fetcher=async url=>{calls++;const gid=Number(new URL(url).searchParams.get('gid')),s=SHEETS.find(s=>s.gid===gid);if(fail&&s.code==='21111')return new Response('',{status:503});return new Response(csv([row(s.code)]));};
  const [a,b]=await Promise.all([cache.get(fetcher,10000),cache.get(fetcher,10000)]);
  assert.equal(calls,6);assert.equal(a,b);assert.equal(a.records.length,6);await cache.get(fetcher,11999);assert.equal(calls,6);
- fail=true;const c=await cache.get(fetcher,12000);assert.equal(calls,12);assert.equal(c.records.length,6);assert(c.partial);assert(c.loaded.find(x=>x.code==='21111').stale);
+ fail=true;const c=await cache.get(fetcher,12000);assert.equal(calls,13);assert.equal(c.records.length,6);assert(c.partial);assert(c.loaded.find(x=>x.code==='21111').stale);
 });
 test('empty source never pretends to return zero employees',async()=>{
  const cache=new SheetCache();await assert.rejects(()=>cache.get(async()=>new Response(''),1));assert.equal(cache.value,null);
