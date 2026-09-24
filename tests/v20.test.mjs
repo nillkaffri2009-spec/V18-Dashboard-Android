@@ -39,8 +39,8 @@ test('PC and phone can repeatedly reclaim; monitor stays read only; stale owner 
  assert.equal((await send('computer','pc2',{action:'claim',onlyIfUnowned:true})).status,409);
  pc=await send('computer','pc',{action:'update',epoch:pc.epoch,view:{...model.DEFAULT_VIEW,month:6,day:1,department:'21113'}});
  let phone=await send('phone','phone',{action:'claim'});assert(phone.active);assert.equal(phone.view.department,'21113');
- phone=await send('phone','phone',{action:'update',epoch:phone.epoch,view:{...phone.view,department:'21120',page:2,scrollRatio:0.62}});
- const tv=await send('monitor','tv');assert.equal(tv.view.department,'21120');assert.equal(tv.view.scrollRatio,0.62);
+ phone=await send('phone','phone',{action:'update',epoch:phone.epoch,view:{...phone.view,department:'21120',page:2,scrollRatio:0.62,rosterScrollRatio:0.44,employeeScrollRatio:0.33,deptTableScrollRatio:0.55,kpiTableScrollRatio:0.77}});
+ const tv=await send('monitor','tv');assert.equal(tv.view.department,'21120');assert.equal(tv.view.scrollRatio,0.62);assert.equal(tv.view.rosterScrollRatio,0.44);assert.equal(tv.view.employeeScrollRatio,0.33);assert.equal(tv.view.deptTableScrollRatio,0.55);assert.equal(tv.view.kpiTableScrollRatio,0.77);
  assert.equal((await send('computer','pc',{action:'update',epoch:pc.epoch,view:pc.view})).status,409);
  pc=await send('computer','pc',{action:'claim'});assert(pc.active);assert.equal(pc.view.department,'21113');
  phone=await send('phone','phone',{action:'claim'});assert(phone.active);assert.equal(phone.view.page,2);
@@ -53,8 +53,8 @@ test('PC and phone can repeatedly reclaim; monitor stays read only; stale owner 
 test('role routes use shared app, control selector never contains monitor and polling is 2 seconds',async()=>{
  const html=await fs.readFile(new URL('../worker/public/index.html',import.meta.url),'utf8');
  const selector=html.match(/<select id="deviceRole">(.*?)<\/select>/s)[1];assert(!selector.includes('monitor'));assert(selector.includes('computer'));assert(selector.includes('phone'));
- const app=await fs.readFile(new URL('../worker/public/app.js',import.meta.url),'utf8');assert(app.includes('setInterval(syncData,2000)'));assert(app.includes('setInterval(checkBuildVersion,2000)'));assert(app.includes('scrollRatio'));assert(html.includes('v=20.4-final12'));assert(!app.includes("data.source==='computer'&&!active"));
+ const app=await fs.readFile(new URL('../worker/public/app.js',import.meta.url),'utf8');assert(app.includes('setInterval(syncData,2000)'));assert(app.includes('setInterval(checkBuildVersion,2000)'));assert(app.includes('rosterScrollRatio'));assert(app.includes('employeeScrollRatio'));assert(html.includes('manualRefresh'));assert(html.includes('v=20.5-final14'));assert(!app.includes("data.source==='computer'&&!active"));
  let path;const env={ASSETS:{fetch:async req=>{path=new URL(req.url).pathname;return new Response(html);}}};
  for(const role of ['admin','phone','monitor']){assert.equal((await worker.fetch(new Request('https://test/'+role),env)).status,200);assert.equal(path,'/index.html');}
- const health=await (await worker.fetch(new Request('https://test/api/health'),env)).json();assert.equal(health.version,'20.4-cloud');assert.equal(health.assetVersion,'20.4-final12');
+ const health=await (await worker.fetch(new Request('https://test/api/health'),env)).json();assert.equal(health.version,'20.5-cloud');assert.equal(health.assetVersion,'20.5-final14');
 });
