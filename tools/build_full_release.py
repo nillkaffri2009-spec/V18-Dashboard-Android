@@ -5,7 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "release_full"
-NAME = "V20_ASOSIY_3_FINAL_14_COMPLETE_PACKAGE"
+NAME = "V20_ASOSIY_3_FINAL_15_TV_READABILITY_FIXED"
 PKG = OUT / NAME
 CLOUD = "https://v18-dashboard-server.nill-kaffri-2009.workers.dev"
 
@@ -242,7 +242,7 @@ for name in [
 # 6) Documentation / inventory
 counts = snapshot.get("counts") or snapshot.get("countsByMonth") or {}
 coverage = snapshot.get("counts") or {}
-readme = f'''V20_ASOSIY_3_FINAL_14_COMPLETE_PACKAGE
+readme = f'''V20_ASOSIY_3_FINAL_15_TV_READABILITY_FIXED
 ================================================
 
 ASOSIY: Asosiy dizayn 3
@@ -253,12 +253,12 @@ PC ↔ PHONE: boshqaruv almashadi
 MONITOR: faqat ko‘rish
 Scroll mirror: scrollRatio
 Cache: no-store + version auto-reload
-Live build: V20.5 / final14 complete-sync fixes
+Live build: V20.6 / final15 TV-readability fixes
 
 DOIMIY CLOUD LINKLAR:
 ADMIN   {CLOUD}/admin?mode=computer
 PHONE   {CLOUD}/phone?mode=phone
-MONITOR {CLOUD}/monitor?mode=monitor
+MONITOR {CLOUD}/monitor?mode=monitor\nTV SIZE EXAMPLE: {CLOUD}/monitor?mode=monitor&tv=55
 
 PAPKA TARKIBI:
 CLOUDFLARE/      - hozirgi live Worker manbasi
