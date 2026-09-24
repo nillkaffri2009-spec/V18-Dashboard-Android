@@ -41,3 +41,31 @@ jobs:
             sleep 3
           done
           test "$DATA_OK" = "1"
+
+      - name: Package V20 Final 13 source
+        run: |
+          rm -rf release
+          mkdir -p release/V20_ASOSIY_3_FINAL_13_CACHE_SYNC_FIXED
+          cp -R worker release/V20_ASOSIY_3_FINAL_13_CACHE_SYNC_FIXED/
+          cp -R tests release/V20_ASOSIY_3_FINAL_13_CACHE_SYNC_FIXED/
+          mkdir -p release/V20_ASOSIY_3_FINAL_13_CACHE_SYNC_FIXED/.github/workflows
+          cp .github/workflows/deploy-worker.yml release/V20_ASOSIY_3_FINAL_13_CACHE_SYNC_FIXED/.github/workflows/
+          cat > release/V20_ASOSIY_3_FINAL_13_CACHE_SYNC_FIXED/README.txt <<'EOF'
+V20_ASOSIY_3_FINAL_13_CACHE_SYNC_FIXED
+Asosiy dizayn 3 · V20.4 cloud
+Live Google Sheets refresh: 2 seconds
+PC Admin: /admin?mode=computer
+Phone Admin: /phone?mode=phone
+Monitor read-only: /monitor?mode=monitor
+Fixes: cache busting, auto build reload, Google Sheets cache conflict, PC/Phone controller handover, monitor scrollRatio mirror.
+EOF
+          cd release
+          zip -r V20_ASOSIY_3_FINAL_13_CACHE_SYNC_FIXED.zip V20_ASOSIY_3_FINAL_13_CACHE_SYNC_FIXED
+
+      - name: Upload V20 Final 13 ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: V20_ASOSIY_3_FINAL_13_CACHE_SYNC_FIXED
+          path: release/V20_ASOSIY_3_FINAL_13_CACHE_SYNC_FIXED.zip
+          if-no-files-found: error
+          retention-days: 30
