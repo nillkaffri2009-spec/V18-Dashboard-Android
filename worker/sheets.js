@@ -49,6 +49,40 @@ export function normalizeRows(rows,expectedCode) {
   });
   return [...unique.values()];
 }
+function parseGviz(text) {
+  const a=String(text).indexOf('{'),b=String(text).lastIndexOf('}');
+  if(a<0||b<a)throw Error('Google GViz javobi noto‘g‘ri');
+  return JSON.parse(String(text).slice(a,b+1));
+}
+function gvizValue(cell){return cell?.v??cell?.f??null;}
+export function normalizeGviz(obj,expectedCode) {
+  const rows=obj?.table?.rows||[],raw=rows.map(r=>(r?.c||[]).map(gvizValue));
+  return normalizeRows(raw,expectedCode);
+}
+async function fetchRecords(fetcher,sheet,now) {
+  const base=`https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}`;
+  const options={cache:'no-store',cf:{cacheTtl:0,cacheEverything:false}};
+  const errors=[];
+  try{
+    const url=`${base}/export?format=csv&gid=${sheet.gid}&_v20=${Math.floor(now/2000)}`;
+    const response=await fetcher(url,options);
+    if(!response.ok)throw Error(`CSV HTTP ${response.status}`);
+    const text=await response.text();
+    if(/^\s*<!doctype html|^\s*<html/i.test(text))throw Error('CSV o‘rniga kirish sahifasi keldi');
+    const records=normalizeRows(parseCSV(text),sheet.code);
+    if(records.length)return records;
+    throw Error('CSV bo‘lim qatorlari topilmadi');
+  }catch(e){errors.push(String(e?.message||e));}
+  try{
+    const url=`${base}/gviz/tq?tqx=out:json&gid=${sheet.gid}&tq=${encodeURIComponent('select *')}&_v20=${Math.floor(now/2000)}`;
+    const response=await fetcher(url,options);
+    if(!response.ok)throw Error(`GViz HTTP ${response.status}`);
+    const records=normalizeGviz(parseGviz(await response.text()),sheet.code);
+    if(records.length)return records;
+    throw Error('GViz bo‘lim qatorlari topilmadi');
+  }catch(e){errors.push(String(e?.message||e));}
+  throw Error(errors.join(' | '));
+}
 export function coverage(records) {
   const counts={};for(const row of records){counts[row.m]??={};counts[row.m][row.d]=(counts[row.m][row.d]||0)+1;}
   const available=MONTHS.map((_,i)=>i).filter(i=>counts[MONTHS[i]]);
@@ -68,13 +102,7 @@ export class SheetCache {
     const errors=[],loaded=[];
     await Promise.all(SHEETS.map(async sheet=>{
       try {
-        const url=`https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=csv&gid=${sheet.gid}&_v20=${Math.floor(now/2000)}`;
-        const response=await fetcher(url,{cache:'no-store',signal:AbortSignal.timeout(12000),cf:{cacheTtl:0,cacheEverything:false}});
-        if(!response.ok)throw Error(`HTTP ${response.status}`);
-        const text=await response.text();
-        if(/^\s*<!doctype html|^\s*<html/i.test(text))throw Error('CSV o‘rniga kirish sahifasi keldi');
-        const records=normalizeRows(parseCSV(text),sheet.code);
-        if(!records.length)throw Error('Bo‘lim qatorlari topilmadi');
+        const records=await fetchRecords(fetcher,sheet,now);
         this.parts.set(sheet.code,{records,refreshedAt:new Date().toISOString()});
         loaded.push({code:sheet.code,sheet:sheet.name,records:records.length,stale:false});
       } catch(e) {
