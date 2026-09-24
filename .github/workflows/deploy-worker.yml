@@ -24,7 +24,19 @@ jobs:
           command: deploy --config worker/wrangler.jsonc
       - name: Verify deployed version and Google Sheets
         run: |
-          curl --retry 3 --retry-delay 2 --fail --silent --show-error 'https://v18-dashboard-server.nill-kaffri-2009.workers.dev/api/health' -o /tmp/v20-health.json
-          node -e "const fs=require('fs');const h=JSON.parse(fs.readFileSync('/tmp/v20-health.json'));if(h.version!=='20.4-cloud')process.exit(1);console.log('Version:',h.version);"
-          curl --retry 2 --retry-delay 2 --fail --silent --show-error --max-time 60 'https://v18-dashboard-server.nill-kaffri-2009.workers.dev/api/google-test' -o /tmp/v20-data-check.json
-          node -e "const fs=require('fs');const d=JSON.parse(fs.readFileSync('/tmp/v20-data-check.json'));if(!d.ok||!d.totalRecords||d.errors.length)process.exit(1);console.log(JSON.stringify({records:d.totalRecords,counts:d.countsByMonth},null,2));"
+          set -e
+          HEALTH_OK=0
+          for i in $(seq 1 15); do
+            curl --fail --silent --show-error --max-time 15 "https://v18-dashboard-server.nill-kaffri-2009.workers.dev/api/health?_verify=$i" -o /tmp/v20-health.json || true
+            if node -e "const fs=require('fs');try{const h=JSON.parse(fs.readFileSync('/tmp/v20-health.json'));if(h.version!=='20.4-cloud')process.exit(1);console.log('Version:',h.version,'Assets:',h.assetVersion)}catch(e){process.exit(1)}"; then HEALTH_OK=1; break; fi
+            sleep 2
+          done
+          test "$HEALTH_OK" = "1"
+
+          DATA_OK=0
+          for i in $(seq 1 8); do
+            curl --fail --silent --show-error --max-time 60 "https://v18-dashboard-server.nill-kaffri-2009.workers.dev/api/google-test?_verify=$i" -o /tmp/v20-data-check.json || true
+            if node -e "const fs=require('fs');try{const d=JSON.parse(fs.readFileSync('/tmp/v20-data-check.json'));if(!d.ok||!d.totalRecords||d.errors.length)process.exit(1);console.log(JSON.stringify({records:d.totalRecords,counts:d.countsByMonth},null,2))}catch(e){process.exit(1)}"; then DATA_OK=1; break; fi
+            sleep 3
+          done
+          test "$DATA_OK" = "1"
