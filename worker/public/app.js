@@ -5,7 +5,7 @@ const labels={present:'Ishda',absent:'Yo‘q',rest:'Dam olish',unknown:'Kiritilm
 const roleNames={computer:'Admin-kompyuter',phone:'Telefon',monitor:'Monitor'};
 const SHEET_ID='1IWyUdorge58MbvpNlB5Z08Rawm8AdoeHinxgjiFktF4';
 const CONFIG=window.V20_CONFIG||{};
-const APP_BUILD='20.5-cloud';
+const APP_BUILD='20.6-cloud';
 const isPreview=Boolean(CONFIG.preview);
 const apiPath=path=>(CONFIG.apiBase||'').replace(/\/$/,'')+path;
 const url=new URL(location.href);
@@ -17,12 +17,38 @@ let clientId;try{clientId=sessionStorage.getItem('asosiyDevice');if(!clientId){c
 let view={...DEFAULT_VIEW},remote=null,connected=false,active=false,busy=false,dirty=false,localVersion=0,lastHeartbeat=0,pollBusy=false,dataBusy=false,dataOnline=false,noticeTimer,initialMonthChosen=false,lastLiveData=null,everLoaded=false,applyingRemoteScroll=false,scrollSendTimers={};
 $('deviceRole').value=role;
 if(CONFIG.snapshot?.records?.length)setLiveRecords(CONFIG.snapshot.records);
-if(isPreview){view={...view,month:CONFIG.previewMonth??6,day:1};$('sourceTag').textContent='ZAXIRA MA’LUMOT · KO‘RINISH';$('sourceTag').className='offline';$('dataStatus').textContent='Dizaynni ko‘rish · ZIP ichidagi saqlangan ma’lumot · LIVE emas';$('versionLabel').textContent='V20.3 · Asosiy 3 · Ko‘rinish';}
+if(isPreview){view={...view,month:CONFIG.previewMonth??6,day:1};$('sourceTag').textContent='ZAXIRA MA’LUMOT · KO‘RINISH';$('sourceTag').className='offline';$('dataStatus').textContent='Dizaynni ko‘rish · ZIP ichidagi saqlangan ma’lumot · LIVE emas';$('versionLabel').textContent='V20.6 · Asosiy 3 · Ko‘rinish';}
 else if(CONFIG.snapshot){$('sourceTag').textContent='ZAXIRA · ULANMOQDA';$('sourceTag').className='offline';$('dataStatus').textContent='ZIP ichidagi zaxira ma’lumot · serverga ulanmoqda…';}
 $('month').innerHTML=MONTHS.map((m,i)=>`<option value="${i}">${m}</option>`).join('');
 $('departmentFilter').innerHTML='<option value="">Barcha bo‘limlar</option>'+DEPTS.map(d=>`<option value="${d.code}">${esc(d.name)}</option>`).join('');
 function notify(msg){$('notice').textContent=msg;clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>$('notice').textContent='',6500);}
 function bar(d,rs,selected){const q=stats(rs);return `<div class="barrow ${selected?'selected':''}" data-department="${d.code}" role="button" tabindex="0" aria-label="${esc(d.name)} bo‘limini tanlash"><span>${esc(d.name)}</span><div class="track"><div class="fill" style="width:${q.rate??0}%"></div></div><strong>${pct(q.rate)}</strong></div>`;}
+function monitorInches(){
+ const q=Number(url.searchParams.get('tv'));
+ return Number.isFinite(q)&&q>=24&&q<=100?q:43;
+}
+function applyMonitorTypography(){
+ if(role!=='monitor'){
+  for(const k of ['--tv-body','--tv-small','--tv-title','--tv-nav','--tv-heading','--tv-kpi','--tv-clock'])document.body.style.removeProperty(k);
+  delete document.body.dataset.tv;
+  return;
+ }
+ const inches=monitorInches();
+ const diagonal=Math.hypot(Math.max(innerWidth,1),Math.max(innerHeight,1));
+ const resolutionFactor=Math.min(1.08,Math.max(0.92,diagonal/2203));
+ const sizeFactor=Math.min(1.35,Math.max(0.82,inches/43));
+ const base=Math.round(Math.min(28,Math.max(18,22*resolutionFactor*sizeFactor)));
+ const small=Math.max(16,base-4);
+ const heading=Math.min(34,base+5);
+ document.body.dataset.tv=String(inches);
+ document.body.style.setProperty('--tv-body',base+'px');
+ document.body.style.setProperty('--tv-small',small+'px');
+ document.body.style.setProperty('--tv-title',Math.min(38,base+9)+'px');
+ document.body.style.setProperty('--tv-nav',Math.min(30,base+2)+'px');
+ document.body.style.setProperty('--tv-heading',heading+'px');
+ document.body.style.setProperty('--tv-kpi',Math.min(86,Math.round(base*3))+'px');
+ document.body.style.setProperty('--tv-clock',Math.min(58,Math.round(base*2))+'px');
+}
 function uiPermissions(){
  const can=isPreview||active&&connected;
  $('deviceRole').disabled=lockedMonitor||isPreview||busy;
@@ -32,6 +58,7 @@ function uiPermissions(){
  for(const el of document.querySelectorAll('#month,#day,#globalFilters select,#globalFilters button,#resetFilters,.nav [data-page],#detail input,#detail select'))el.disabled=!can;
  document.querySelector('.main').classList.toggle('read-only',!can);
  document.body.classList.toggle('monitor-mode',role==='monitor');
+ applyMonitorTypography();
  document.querySelector('.app').classList.toggle('admin-compact',role==='monitor');
  if(isPreview)return;
  $('claim').hidden=role==='monitor';$('claim').disabled=busy||active;
@@ -231,6 +258,7 @@ async function checkBuildVersion(){
   if(response.ok&&data.version&&data.version!==APP_BUILD){const next=new URL(location.href);next.searchParams.set('_build',data.version);location.replace(next.toString());}
  }catch{}
 }
+window.addEventListener('resize',()=>applyMonitorTypography(),{passive:true});
 window.addEventListener('online',()=>{if(!isPreview){void checkBuildVersion();void poll();void syncData();}});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!isPreview){void checkBuildVersion();void poll();void syncData();}});
 window.addEventListener('scroll',queueScrollSync,{passive:true});
