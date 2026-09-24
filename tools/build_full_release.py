@@ -5,7 +5,7 @@ from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/"release_full"
-NAME="V20_ASOSIY_3_FINAL_16_FINAL12_START_43TV_FIXED"
+NAME="V20_ASOSIY_3_FINAL_17_CLOUD_MONITOR_SYNC_FIXED"
 PKG=OUT/NAME
 CLOUD="https://v18-dashboard-server.nill-kaffri-2009.workers.dev"
 
@@ -181,17 +181,51 @@ write(PKG/"server.py",server)
 
 redir='''<!doctype html><meta charset="utf-8"><script>location.replace("{route}")</script>'''
 for fn,route in [
- ("admin.html","http://127.0.0.1:5000/admin?mode=computer"),
- ("monitor.html","http://127.0.0.1:5000/monitor?mode=monitor&tv=43"),
- ("phone.html","http://127.0.0.1:5000/phone?mode=phone"),
- ("Dashboard_GoogleSheets.html","http://127.0.0.1:5000/admin?mode=computer"),
- ("DashBoard_index.html","http://127.0.0.1:5000/admin?mode=computer")]:
+ ("admin.html",f"{CLOUD}/admin?mode=computer&take_control=1"),
+ ("monitor.html",f"{CLOUD}/monitor?mode=monitor&tv=43"),
+ ("phone.html",f"{CLOUD}/phone?mode=phone"),
+ ("Dashboard_GoogleSheets.html",f"{CLOUD}/admin?mode=computer&take_control=1"),
+ ("DashBoard_index.html",f"{CLOUD}/admin?mode=computer&take_control=1")]:
     write(PKG/fn,redir.format(route=route))
 
-write(PKG/"START_ALL.bat",r'''@echo off
+write(PKG/"START_ALL.bat",f'''@echo off
 chcp 65001 >nul
 cd /d "%~dp0"
 taskkill /FI "WINDOWTITLE eq MAMURIYAT_SERVER*" /T /F >nul 2>nul
+
+REM Local server only stays as a backup/snapshot source.
+where py >nul 2>nul
+if %errorlevel%==0 (
+ start "MAMURIYAT_SERVER" /min cmd /k "title MAMURIYAT_SERVER & py -3 server.py"
+) else (
+ start "MAMURIYAT_SERVER" /min cmd /k "title MAMURIYAT_SERVER & python server.py"
+)
+timeout /t 2 /nobreak >nul
+
+REM IMPORTANT: Admin opens on the SAME Cloudflare state used by the 43-inch monitor.
+start "" "{CLOUD}/admin?mode=computer&take_control=1"
+
+echo.
+echo ============================================================
+echo  FINAL 17: ADMIN + MONITOR BIR XIL CLOUD STATE
+echo ============================================================
+echo  PC Admin ochildi:
+echo  {CLOUD}/admin?mode=computer
+echo.
+echo  43 dyuym monitor eski saqlangan linkda qoladi:
+echo  {CLOUD}/monitor?mode=monitor
+echo.
+echo  Monitor brauzerini yopish shart emas.
+echo  Agar eski kesh ko'rinsa bir marta Ctrl+F5 bosing.
+echo ============================================================
+timeout /t 6 /nobreak >nul
+''')
+write(PKG/"START_MONITOR_43_CLOUD.bat",f'''@echo off
+start "" "{CLOUD}/monitor?mode=monitor&tv=43"
+''')
+write(PKG/"START_LOCAL_LAN_FALLBACK.bat",r'''@echo off
+chcp 65001 >nul
+cd /d "%~dp0"
 where py >nul 2>nul
 if %errorlevel%==0 (
  start "MAMURIYAT_SERVER" /min cmd /k "title MAMURIYAT_SERVER & py -3 server.py"
@@ -201,16 +235,9 @@ if %errorlevel%==0 (
 timeout /t 2 /nobreak >nul
 start "" "http://127.0.0.1:5000/admin?mode=computer"
 start "" "http://127.0.0.1:5000/monitor?mode=monitor&tv=43"
-echo.
-echo Admin va 43 dyuym monitor ochildi.
-echo Telefon/TV LAN manzili server oynasida ko'rsatiladi.
-timeout /t 4 /nobreak >nul
-''')
-write(PKG/"START_MONITOR_43.bat",r'''@echo off
-start "" "http://127.0.0.1:5000/monitor?mode=monitor&tv=43"
-''')
-write(PKG/"START_PHONE.bat",r'''@echo off
-start "" "http://127.0.0.1:5000/phone?mode=phone"
+''' )
+write(PKG/"START_PHONE.bat",f'''@echo off
+start "" "{CLOUD}/phone?mode=phone"
 ''')
 write(PKG/"START_CLOUD.bat",f'''@echo off
 start "" "{CLOUD}/admin?mode=computer"
@@ -238,7 +265,7 @@ echo ===== IPv4 =====
 ipconfig | findstr /R /C:"IPv4"
 pause
 ''')
-write(PKG/"PHONE_MONITOR.txt",f'''FINAL 12 START PRINCIPI — FINAL 16
+write(PKG/"PHONE_MONITOR.txt",f'''FINAL 12 START PRINCIPI — FINAL 17
 
 LOCAL ADMIN:
 http://127.0.0.1:5000/admin?mode=computer
@@ -256,6 +283,20 @@ CLOUD ADMIN:
 {CLOUD}/admin?mode=computer
 CLOUD 43 TV:
 {CLOUD}/monitor?mode=monitor&tv=43
+
+MUHIM:
+START_ALL PC Adminni shu Cloudflare state'ga ulaydi.
+Shuning uchun monitor workers.dev linkda turgan bo'lsa, Admin o'zgarishi monitorga tushadi.
+''')
+write(PKG/"MONITOR_DOIMIY_LINK.txt",f'''43 DYUYM MONITOR — DOIMIY LINK
+
+{CLOUD}/monitor?mode=monitor
+
+43 dyuym aniq profil:
+{CLOUD}/monitor?mode=monitor&tv=43
+
+Bu linkni monitor brauzerida saqlab qo'ying.
+Keyingi START_ALL shu monitor bilan bir xil Cloudflare state'da ishlaydi.
 ''')
 
 # Source/backup materials are kept separate; root remains simple to use.
@@ -267,16 +308,20 @@ for p in (ROOT/".github"/"workflows").glob("*.yml"):shutil.copy2(p,src/".github"
 for old in ["V18_ASOSIY_DESIGN_2_CONTROL_SYNC_FIXED.zip","V18_GOOGLE_SHEETS_FINAL_FIXED.zip","V18_KUNLIK_DAVOMAD_PC_MONITOR_PHONE_FIXED.zip"]:
     if (ROOT/old).exists():shutil.copy2(ROOT/old,src/old)
 
-write(PKG/"README_UZ.txt",f'''V20_ASOSIY_3_FINAL_16_FINAL12_START_43TV_FIXED
+write(PKG/"README_UZ.txt",f'''V20_ASOSIY_3_FINAL_17_CLOUD_MONITOR_SYNC_FIXED
 
 ISHGA TUSHIRISH:
 1. ZIPni oching.
 2. START_ALL.bat ni ikki marta bosing.
-3. Admin va 43" Monitor avtomatik ochiladi.
-4. Telefon uchun server oynasidagi LAN IP linkdan foydalaning.
+3. PC Admin Cloudflare'dagi shu bitta umumiy state'ga ulanadi va boshqaruvni avtomatik oladi.
+4. 43" monitor avvaldan saqlangan workers.dev linkda ochiq qoladi — qayta link almashtirish shart emas.
+5. Telefon uchun START_PHONE.bat ishlating.
+6. Internet uzilsa START_LOCAL_LAN_FALLBACK.bat orqali LAN rejimidan foydalaning.
 
 ASOSIY QOIDALAR:
-- FINAL 12 ishga tushirish prinsipi: port 5000, bitta START_ALL.
+- FINAL 12 qulayligi saqlandi: bitta START_ALL.
+- Asosiy ish rejimi: PC Admin + Telefon + 43" Monitor bir xil Cloudflare state'da.
+- Local port 5000 faqat zaxira/LAN fallback uchun.
 - Kunlik davomad asosiy ekran.
 - Ish soatlari va KPI alohida.
 - Monitor faqat ko‘rish.
@@ -286,12 +331,12 @@ ASOSIY QOIDALAR:
 - Google Sheets 2 soniyada tekshiriladi.
 - Internet bo‘lmasa DATA snapshot darhol ishlaydi.
 - 43" monitor profili 2 metr masofa uchun balanslangan.
-- Saqlangan Cloud URL o‘zgarmaydi.
+- Saqlangan Cloud monitor URL o‘zgarmaydi va START_ALL bilan aynan shu state boshqariladi.
 
 CLOUD:
 {CLOUD}
 ''')
-(PKG/"VERSION_INFO.json").write_text(json.dumps({"package":NAME,"version":"20.7-final16","records":len(data.get("records",[])),"source":data.get("source"),"refreshedAt":data.get("refreshedAt"),"port":5000,"tvDefault":43},ensure_ascii=False,indent=2),encoding="utf-8")
+(PKG/"VERSION_INFO.json").write_text(json.dumps({"package":NAME,"version":"20.7-final17-launcher","records":len(data.get("records",[])),"source":data.get("source"),"refreshedAt":data.get("refreshedAt"),"port":5000,"tvDefault":43,"syncMode":"cloud-shared-state","localFallbackPort":5000},ensure_ascii=False,indent=2),encoding="utf-8")
 
 zip_path=OUT/(NAME+".zip")
 with zipfile.ZipFile(zip_path,"w",zipfile.ZIP_DEFLATED,allowZip64=True) as z:
