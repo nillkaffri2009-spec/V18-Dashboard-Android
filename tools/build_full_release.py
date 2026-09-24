@@ -253,7 +253,7 @@ PC ↔ PHONE: boshqaruv almashadi
 MONITOR: faqat ko‘rish
 Scroll mirror: scrollRatio
 Cache: no-store + version auto-reload
-Live build: V20.4 / final12 cache-sync fixes
+Live build: V20.5 / final14 complete-sync fixes
 
 DOIMIY CLOUD LINKLAR:
 ADMIN   {CLOUD}/admin?mode=computer
