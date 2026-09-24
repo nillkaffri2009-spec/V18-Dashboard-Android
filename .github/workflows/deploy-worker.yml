@@ -28,7 +28,7 @@ jobs:
           HEALTH_OK=0
           for i in $(seq 1 15); do
             curl --fail --silent --show-error --max-time 15 "https://v18-dashboard-server.nill-kaffri-2009.workers.dev/api/health?_verify=$i" -o /tmp/v20-health.json || true
-            if node -e "const fs=require('fs');try{const h=JSON.parse(fs.readFileSync('/tmp/v20-health.json'));if(h.version!=='20.6-cloud')process.exit(1);console.log('Version:',h.version,'Assets:',h.assetVersion)}catch(e){process.exit(1)}"; then HEALTH_OK=1; break; fi
+            if node -e "const fs=require('fs');try{const h=JSON.parse(fs.readFileSync('/tmp/v20-health.json'));if(h.version!=='20.7-cloud')process.exit(1);console.log('Version:',h.version,'Assets:',h.assetVersion)}catch(e){process.exit(1)}"; then HEALTH_OK=1; break; fi
             sleep 2
           done
           test "$HEALTH_OK" = "1"
@@ -42,13 +42,13 @@ jobs:
           done
           test "$DATA_OK" = "1"
 
-      - name: Build complete V20 Final 15 package
+      - name: Build Final12-style V20 Final 16 package
         run: python tools/build_full_release.py
 
-      - name: Upload complete V20 Final 15 ZIP
+      - name: Upload V20 Final 16 ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: V20_ASOSIY_3_FINAL_15_TV_READABILITY_FIXED
-          path: release_full/V20_ASOSIY_3_FINAL_15_TV_READABILITY_FIXED.zip
+          name: V20_ASOSIY_3_FINAL_16_FINAL12_START_43TV_FIXED
+          path: release_full/V20_ASOSIY_3_FINAL_16_FINAL12_START_43TV_FIXED.zip
           if-no-files-found: error
           retention-days: 30
