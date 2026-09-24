@@ -1,5 +1,5 @@
 import {SheetCache,SPREADSHEET_ID} from './sheets.js';
-const VERSION='20.3-cloud';
+const VERSION='20.4-cloud';
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -15,7 +15,10 @@ function json(data, status = 200, extraHeaders = {}) {
     status,
     headers: {
       "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+      "Pragma": "no-cache",
+      "Expires": "0",
+      "CDN-Cache-Control": "no-store",
       ...CORS_HEADERS,
       ...extraHeaders,
     },
@@ -24,7 +27,10 @@ function json(data, status = 200, extraHeaders = {}) {
 
 function withNoStore(response) {
   const headers = new Headers(response.headers);
-  headers.set("Cache-Control", "no-store");
+  headers.set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+  headers.set("Pragma", "no-cache");
+  headers.set("Expires", "0");
+  headers.set("CDN-Cache-Control", "no-store");
   for (const [k, v] of Object.entries(CORS_HEADERS)) headers.set(k, v);
 
   return new Response(response.body, {
@@ -52,6 +58,7 @@ function defaultView() {
     tableStatus: "",
     minHours: "",
     maxHours: "",
+    scrollRatio: 0,
   };
 }
 
@@ -82,6 +89,9 @@ function sanitizeView(input) {
     if (["month", "day", "page"].includes(key)) {
       const n = Number(input[key]);
       if (Number.isInteger(n)) out[key] = n;
+    } else if (key === "scrollRatio") {
+      const n = Number(input[key]);
+      if (Number.isFinite(n)) out[key] = Math.min(1, Math.max(0, n));
     } else {
       const limit = key === "query" ? 80 : 30;
       out[key] = String(input[key] ?? "").slice(0, limit);
@@ -186,6 +196,7 @@ export default {
           ok: true,
           service: "V20 Asosiy design 3 Cloud Server",
           version: VERSION,
+          assetVersion: "20.4-final12",
           computerRequired: false,
           durableObjectConfigured: Boolean(env?.V18_STATE),
           assetsConfigured: Boolean(env?.ASSETS),
@@ -281,7 +292,7 @@ export class V18State {
 
   publicState(data, role, cid) {
     const src = data.source;
-    const view = data.devices?.[src]?.view || defaultView();
+    const view = sanitizeView(data.devices?.[src]?.view || defaultView());
     const owner = data.devices?.[role]?.owner || "";
     const active = src === role && owner === cid;
 
