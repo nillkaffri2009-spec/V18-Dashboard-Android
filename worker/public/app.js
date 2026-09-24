@@ -5,6 +5,7 @@ const labels={present:'Ishda',absent:'Yo‘q',rest:'Dam olish',unknown:'Kiritilm
 const roleNames={computer:'Admin-kompyuter',phone:'Telefon',monitor:'Monitor'};
 const SHEET_ID='1IWyUdorge58MbvpNlB5Z08Rawm8AdoeHinxgjiFktF4';
 const CONFIG=window.V20_CONFIG||{};
+const APP_BUILD='20.4-cloud';
 const isPreview=Boolean(CONFIG.preview);
 const apiPath=path=>(CONFIG.apiBase||'').replace(/\/$/,'')+path;
 const url=new URL(location.href);
@@ -13,7 +14,7 @@ let role=lockedMonitor?'monitor':(['computer','phone'].includes(url.searchParams
 if(!lockedMonitor&&!['computer','phone'].includes(role))role='computer';
 const newDeviceId=()=>window.crypto?.randomUUID?.()||`device-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
 let clientId;try{clientId=sessionStorage.getItem('asosiyDevice');if(!clientId){clientId=newDeviceId();sessionStorage.setItem('asosiyDevice',clientId);}}catch{clientId=newDeviceId();}
-let view={...DEFAULT_VIEW},remote=null,connected=false,active=false,busy=false,dirty=false,localVersion=0,lastHeartbeat=0,pollBusy=false,dataBusy=false,dataOnline=false,noticeTimer,initialMonthChosen=false,lastLiveData=null,everLoaded=false;
+let view={...DEFAULT_VIEW},remote=null,connected=false,active=false,busy=false,dirty=false,localVersion=0,lastHeartbeat=0,pollBusy=false,dataBusy=false,dataOnline=false,noticeTimer,initialMonthChosen=false,lastLiveData=null,everLoaded=false,applyingRemoteScroll=false,scrollSendTimer=null;
 $('deviceRole').value=role;
 if(CONFIG.snapshot?.records?.length)setLiveRecords(CONFIG.snapshot.records);
 if(isPreview){view={...view,month:CONFIG.previewMonth??6,day:1};$('sourceTag').textContent='ZAXIRA MA’LUMOT · KO‘RINISH';$('sourceTag').className='offline';$('dataStatus').textContent='Dizaynni ko‘rish · ZIP ichidagi saqlangan ma’lumot · LIVE emas';$('versionLabel').textContent='V20.3 · Asosiy 3 · Ko‘rinish';}
@@ -38,6 +39,25 @@ function uiPermissions(){
  $('release').hidden=role!=='phone'||!active;$('release').disabled=busy||!connected;
  $('connection').textContent=connected?'● Ulangan':'● Aloqa yo‘q · qayta urinilmoqda';$('connection').className=connected?'live':'offline';
  $('controlSource').textContent=`Boshqaruv: ${roleNames[remote?.source||'computer']}${role==='monitor'?' · faqat ko‘rish':active?' · sizda':' · kuzatuv'}`;
+}
+function getScrollRatio(){
+ const max=Math.max(0,document.documentElement.scrollHeight-window.innerHeight);
+ return max?Math.min(1,Math.max(0,window.scrollY/max)):0;
+}
+function applyRemoteScroll(){
+ if(isPreview||(active&&role!=='monitor'))return;
+ const ratio=Number(view.scrollRatio);if(!Number.isFinite(ratio))return;
+ requestAnimationFrame(()=>{
+  const max=Math.max(0,document.documentElement.scrollHeight-window.innerHeight);const top=max*Math.min(1,Math.max(0,ratio));
+  if(Math.abs(window.scrollY-top)>2){applyingRemoteScroll=true;window.scrollTo(0,top);requestAnimationFrame(()=>{applyingRemoteScroll=false;});}
+ });
+}
+function queueScrollSync(){
+ if(applyingRemoteScroll||lockedMonitor||isPreview||!active||!connected)return;
+ clearTimeout(scrollSendTimer);scrollSendTimer=setTimeout(()=>{
+  const ratio=getScrollRatio();if(Math.abs(ratio-Number(view.scrollRatio||0))<0.002)return;
+  view={...view,scrollRatio:ratio};dirty=true;localVersion++;void flush();
+ },90);
 }
 function render(){
  const monthRows=getLiveRecords().filter(r=>r.m===MONTHS[view.month]);
@@ -68,7 +88,7 @@ function render(){
  $('detail').classList.toggle('active',!!view.detail);
  document.querySelectorAll('.nav [data-page]').forEach(el=>{el.classList.toggle('active',Number(el.dataset.page)===view.page);el.setAttribute('aria-pressed',String(Number(el.dataset.page)===view.page));});
  $('title').textContent=[null,'Kunlik davomad','Ish soatlari','KPI ko‘rsatkichlari'][view.page]+(d?' — '+d.name:'')+(view.detail?' — batafsil':'');$('pageNo').textContent=view.page+' / 3';
- renderDailyRoster(rs,ds);renderHours(rs,ds);renderKPI(rs,ds);if(view.detail)renderDetail();uiPermissions();
+ renderDailyRoster(rs,ds);renderHours(rs,ds);renderKPI(rs,ds);if(view.detail)renderDetail();uiPermissions();applyRemoteScroll();
 }
 
 function renderDailyRoster(rs,ds){
@@ -133,7 +153,7 @@ function accept(data,force=false){
  if(remote && data.revision<remote.revision)return;
  const oldEpoch=remote?.epoch;remote=data;connected=true;active=Boolean(data.isController ?? data.active);
  if(!active||(oldEpoch!==undefined&&oldEpoch!==data.epoch)){dirty=false;}
- if(force||!dirty&&!busy){if(JSON.stringify(view)!==JSON.stringify(data.view)){view={...data.view};render();}}
+ if(force||!dirty&&!busy){const nextView={...DEFAULT_VIEW,...data.view};if(JSON.stringify(view)!==JSON.stringify(nextView)){view=nextView;render();}}
  uiPermissions();
  chooseInitialMonth();
 }
@@ -155,10 +175,12 @@ async function poll(){
  }catch(e){if(currentRole===role){connected=false;active=false;uiPermissions();}}finally{pollBusy=false;}
 }
 function chooseInitialMonth(){
- if(initialMonthChosen||!everLoaded||(!isPreview&&!active))return;
- initialMonthChosen=true;
+ if(initialMonthChosen||!everLoaded)return;
  const available=availableMonths();
- if(available.length&&!available.includes(Number(view.month))){const month=recommendedMonth();change({month,day:1});notify(`${MONTHS[month]} ochildi — oxirgi to‘liq ma’lumot. Barcha oylar ro‘yxatda.`);}
+ if(!available.length||available.includes(Number(view.month))){initialMonthChosen=true;return;}
+ const month=recommendedMonth();if(month===null)return;
+ if(isPreview||active){initialMonthChosen=true;change({month,day:1});notify(`${MONTHS[month]} ochildi — oxirgi to‘liq ma’lumot. Barcha oylar ro‘yxatda.`);return;}
+ if(role==='monitor'&&remote?.hasController===false){initialMonthChosen=true;view={...view,month,day:1};render();notify(`${MONTHS[month]} ochildi — Google Sheetsdagi oxirgi to‘liq oy.`);}
 }
 $('latestMonth').addEventListener('click',()=>{const month=recommendedMonth();if(month!==null)change({month,day:1,department:'',...clearDetail()});});
 async function syncData(){
@@ -182,5 +204,22 @@ async function syncData(){
   $('dataStatus').textContent=`Ulanish xatosi: ${e.message}. ${everLoaded?'Oxirgi olingan ma’lumot saqlandi.':'Qayta urinilmoqda.'}`;$('dataStatus').className='offline';render();chooseInitialMonth();
  }finally{dataBusy=false;}
 }
-window.addEventListener('online',()=>{if(!isPreview){void poll();void syncData();}});document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!isPreview){void poll();void syncData();}});
-updateClock();setInterval(updateClock,1000);render();if(!isPreview){void syncData();if(url.searchParams.get('take_control')==='1'&&!lockedMonitor)void action('claim');else void poll();setInterval(syncData,2000);setInterval(poll,700);}
+async function clearLegacyCaches(){
+ try{
+  if('serviceWorker' in navigator){const regs=await navigator.serviceWorker.getRegistrations();await Promise.all(regs.map(r=>r.unregister()));}
+  if('caches' in window){const keys=await caches.keys();await Promise.all(keys.map(k=>caches.delete(k)));}
+ }catch{}
+}
+async function checkBuildVersion(){
+ if(isPreview)return;
+ try{
+  const response=await fetch(apiPath('/api/health?_build='+Date.now()),{cache:'no-store',headers:{'Cache-Control':'no-cache'},signal:timeoutSignal(5000)});
+  const data=await response.json();
+  if(response.ok&&data.version&&data.version!==APP_BUILD){const next=new URL(location.href);next.searchParams.set('_build',data.version);location.replace(next.toString());}
+ }catch{}
+}
+window.addEventListener('online',()=>{if(!isPreview){void checkBuildVersion();void poll();void syncData();}});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!isPreview){void checkBuildVersion();void poll();void syncData();}});
+window.addEventListener('scroll',queueScrollSync,{passive:true});
+updateClock();setInterval(updateClock,1000);render();void clearLegacyCaches();
+if(!isPreview){void checkBuildVersion();void syncData();if(url.searchParams.get('take_control')==='1'&&!lockedMonitor)void action('claim');else void poll();setInterval(checkBuildVersion,2000);setInterval(syncData,2000);setInterval(poll,700);}
