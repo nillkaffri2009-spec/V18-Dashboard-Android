@@ -61,7 +61,7 @@ export function normalizeGviz(obj,expectedCode) {
 }
 async function fetchRecords(fetcher,sheet,now) {
   const base=`https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}`;
-  const options={cache:'no-store',cf:{cacheTtl:0,cacheEverything:false}};
+  const options={cf:{cacheTtl:0,cacheEverything:false}};
   const errors=[];
   try{
     const url=`${base}/export?format=csv&gid=${sheet.gid}&_v20=${Math.floor(now/2000)}`;
