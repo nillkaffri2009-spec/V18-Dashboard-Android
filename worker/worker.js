@@ -205,7 +205,18 @@ export default {
       }
 
       if (path === "/api/google-test") {
-        const data = await (await env.V18_STATE.get(env.V18_STATE.idFromName('main')).fetch('https://internal.v18/data')).json();
+        const stateResponse = await env.V18_STATE.get(env.V18_STATE.idFromName('main')).fetch('https://internal.v18/data');
+        const data = await stateResponse.json();
+        if (!stateResponse.ok || !Array.isArray(data.records)) {
+          return json({
+            ok: false,
+            source: data.source || 'google-sheets-cloud',
+            spreadsheetId: SPREADSHEET_ID,
+            error: data.error || 'Google Sheets data endpoint failed',
+            status: stateResponse.status,
+            timestamp: new Date().toISOString(),
+          }, 503);
+        }
         const countsByMonth = {};
         for (const row of data.records) {
           if (!countsByMonth[row.m]) countsByMonth[row.m] = {};
