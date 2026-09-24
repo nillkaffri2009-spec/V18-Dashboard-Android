@@ -50,15 +50,15 @@ jobs:
           cp -R tests release/V20_ASOSIY_3_FINAL_13_CACHE_SYNC_FIXED/
           mkdir -p release/V20_ASOSIY_3_FINAL_13_CACHE_SYNC_FIXED/.github/workflows
           cp .github/workflows/deploy-worker.yml release/V20_ASOSIY_3_FINAL_13_CACHE_SYNC_FIXED/.github/workflows/
-          cat > release/V20_ASOSIY_3_FINAL_13_CACHE_SYNC_FIXED/README.txt <<'EOF'
-V20_ASOSIY_3_FINAL_13_CACHE_SYNC_FIXED
-Asosiy dizayn 3 · V20.4 cloud
-Live Google Sheets refresh: 2 seconds
-PC Admin: /admin?mode=computer
-Phone Admin: /phone?mode=phone
-Monitor read-only: /monitor?mode=monitor
-Fixes: cache busting, auto build reload, Google Sheets cache conflict, PC/Phone controller handover, monitor scrollRatio mirror.
-EOF
+          printf '%s\n' \
+            'V20_ASOSIY_3_FINAL_13_CACHE_SYNC_FIXED' \
+            'Asosiy dizayn 3 · V20.4 cloud' \
+            'Live Google Sheets refresh: 2 seconds' \
+            'PC Admin: /admin?mode=computer' \
+            'Phone Admin: /phone?mode=phone' \
+            'Monitor read-only: /monitor?mode=monitor' \
+            'Fixes: cache busting, auto build reload, Google Sheets cache conflict, PC/Phone controller handover, monitor scrollRatio mirror.' \
+            > release/V20_ASOSIY_3_FINAL_13_CACHE_SYNC_FIXED/README.txt
           cd release
           zip -r V20_ASOSIY_3_FINAL_13_CACHE_SYNC_FIXED.zip V20_ASOSIY_3_FINAL_13_CACHE_SYNC_FIXED
 
