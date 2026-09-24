@@ -8,3 +8,86 @@
 .coverage-wrap{display:flex;align-items:center;gap:12px;flex-wrap:wrap;color:#ffd28c;font-size:13px}.coverage-wrap p{margin:0;flex:1}.coverage-wrap button{font-size:12px}.coverage-wrap:has(p[hidden]):has(button[hidden]){display:none}.pill.unknown{color:#a8bfd6}.monitor-mode #adminOpen{display:block}
 
 .refresh-top{flex:none;align-self:flex-start;background:linear-gradient(135deg,#15598d,#0c3b60);border-color:#3d86bb;color:#eaf6ff;white-space:nowrap;font-size:12px;padding:9px 11px}.refresh-top.refreshing{opacity:.65;pointer-events:none}.monitor-mode #manualRefresh{display:none}@media(max-width:760px){.refresh-top{grid-column:1/-1;width:max-content;font-size:10px;padding:7px 9px}.header:has(.refresh-top){grid-template-columns:1fr auto}.header .refresh-top+.brand{grid-column:1/-1}}
+
+
+/* V20.6 FINAL 15 — TV READABILITY
+   Monitor mode is calibrated for 43-inch viewing at ~2 m.
+   JS sets the --tv-* variables from viewport + optional ?tv=32/43/55. */
+.monitor-mode{
+  --tv-body:22px;
+  --tv-small:18px;
+  --tv-title:30px;
+  --tv-nav:24px;
+  --tv-heading:26px;
+  --tv-kpi:66px;
+  --tv-clock:44px;
+  font-size:var(--tv-body);
+  line-height:1.38;
+}
+.monitor-mode .app{gap:16px;padding:12px 20px 0}
+.monitor-mode .header{min-height:118px;padding:16px 20px;gap:18px}
+.monitor-mode .brand{gap:16px}
+.monitor-mode .brand-icon{font-size:54px}
+.monitor-mode .brand h1{font-size:var(--tv-title);line-height:1.18}
+.monitor-mode .brand h1 span{font-size:calc(var(--tv-title) - 4px)}
+.monitor-mode .brand p{font-size:var(--tv-small);line-height:1.35;letter-spacing:1.2px;margin-top:8px}
+.monitor-mode .header-status{min-width:250px;font-size:var(--tv-small);gap:7px}
+.monitor-mode .header-status strong{font-size:calc(var(--tv-small) + 2px)}
+.monitor-mode .header-status small{font-size:var(--tv-small);line-height:1.3}
+.monitor-mode .clock{min-width:150px;padding-left:18px}
+.monitor-mode .clock span,.monitor-mode .clock small{font-size:var(--tv-small)}
+.monitor-mode .clock strong{font-size:var(--tv-clock);line-height:1}
+.monitor-mode .nav{gap:10px}
+.monitor-mode .nav button{height:72px;font-size:var(--tv-nav);line-height:1.15;padding:10px 8px}
+.monitor-mode .nav button span{font-size:calc(var(--tv-nav) + 4px);margin-right:8px}
+.monitor-mode .nav .utility{font-size:var(--tv-small);height:44px}
+.monitor-mode .filter-strip>label,.monitor-mode .date-filter{font-size:calc(var(--tv-body) - 2px);padding:14px 18px;gap:10px}
+.monitor-mode .filter-strip select,.monitor-mode .date-filter #day{height:50px;font-size:calc(var(--tv-body) - 1px);padding:8px 12px}
+.monitor-mode .date-filter #day{width:62px}
+.monitor-mode .view-heading{min-height:48px}
+.monitor-mode .view-heading h2{font-size:calc(var(--tv-heading) - 4px)}
+.monitor-mode .view-heading #pageNo{font-size:var(--tv-small)}
+.monitor-mode .cards{gap:12px}
+.monitor-mode .kpi{min-height:150px;padding:18px 16px;gap:12px}
+.monitor-mode .kpi .lbl{font-size:calc(var(--tv-body) - 1px)}
+.monitor-mode .kpi .val{font-size:var(--tv-kpi);line-height:1.05}
+.monitor-mode .card-icon{font-size:48px!important}
+.monitor-mode .panel-heading{padding:15px 16px;gap:10px}
+.monitor-mode .panel-heading h3,.monitor-mode .box h3{font-size:var(--tv-heading);line-height:1.2}
+.monitor-mode .panel-heading span,.monitor-mode .panel-note{font-size:var(--tv-small);line-height:1.4}
+.monitor-mode .panel-heading button{font-size:var(--tv-small);padding:8px 10px}
+.monitor-mode .roster-scroll{max-height:min(43vh,520px);margin:0 10px}
+.monitor-mode .roster-table{font-size:var(--tv-body);line-height:1.35}
+.monitor-mode .roster-table th{font-size:var(--tv-small);padding:13px 10px}
+.monitor-mode .roster-table td{font-size:var(--tv-body);padding:14px 10px}
+.monitor-mode .roster-table td:nth-child(3){font-size:var(--tv-small)}
+.monitor-mode .pill{font-size:var(--tv-small)}
+.monitor-mode .barbox{padding:14px 18px}
+.monitor-mode .barrow{grid-template-columns:minmax(180px,1fr) minmax(160px,1.6fr) 88px;gap:14px;padding:16px 4px;font-size:var(--tv-body)}
+.monitor-mode .barrow strong{font-size:var(--tv-body)}
+.monitor-mode .track{height:24px}
+.monitor-mode .mini-stats{gap:10px;padding:12px 14px 16px}
+.monitor-mode .mini-stats>div{padding:14px 10px;gap:8px}
+.monitor-mode .mini-stats span,.monitor-mode .mini-stats small{font-size:var(--tv-small)}
+.monitor-mode .mini-stats strong{font-size:calc(var(--tv-heading) + 10px)}
+.monitor-mode .side-head{font-size:var(--tv-body);padding:14px}
+.monitor-mode .side-sub,.monitor-mode .side-row{font-size:var(--tv-small);grid-template-columns:72px 1fr 68px}
+.monitor-mode .side-sub>div,.monitor-mode .side-row>div{padding:12px 8px}
+.monitor-mode .tbl,.monitor-mode .employee-table{font-size:var(--tv-small)}
+.monitor-mode .tbl th,.monitor-mode .tbl td,.monitor-mode .employee-table th,.monitor-mode .employee-table td{padding:13px 11px;line-height:1.35}
+.monitor-mode .detailname{font-size:var(--tv-heading)}
+.monitor-mode .detailbar,.monitor-mode .list-filters{font-size:var(--tv-small)}
+.monitor-mode .list-filters label{font-size:var(--tv-small)}
+.monitor-mode .list-filters input,.monitor-mode .list-filters select{font-size:var(--tv-small);min-height:46px}
+.monitor-mode .shift h3 button{font-size:var(--tv-heading);padding:16px}
+.monitor-mode .shiftrow{font-size:var(--tv-body);grid-template-columns:120px 1fr 145px}
+.monitor-mode .shiftrow>div{padding:14px}
+.monitor-mode .kpi-totals{font-size:var(--tv-body)}
+.monitor-mode .kpi-totals>div{font-size:var(--tv-small)}
+.monitor-mode .kpi-totals strong{font-size:calc(var(--tv-heading) + 10px)}
+.monitor-mode .footer{font-size:var(--tv-small);padding:14px 16px}
+.monitor-mode #notice:not(:empty){font-size:var(--tv-body);padding:16px 22px}
+@media (min-width:1800px) and (min-height:900px){
+  .monitor-mode .daily-grid{gap:16px}
+  .monitor-mode .roster-scroll{max-height:min(46vh,560px)}
+}
