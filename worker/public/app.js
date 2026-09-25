@@ -5,7 +5,7 @@ const labels={present:'Ishda',absent:'Yo‘q',rest:'Dam olish',unknown:'Kiritilm
 const roleNames={computer:'Admin-kompyuter',phone:'Telefon',monitor:'Monitor'};
 const SHEET_ID='1IWyUdorge58MbvpNlB5Z08Rawm8AdoeHinxgjiFktF4';
 const CONFIG=window.V20_CONFIG||{};
-const APP_BUILD='20.7-cloud';
+const APP_BUILD='20.8-cloud';
 const isPreview=Boolean(CONFIG.preview);
 const apiPath=path=>(CONFIG.apiBase||'').replace(/\/$/,'')+path;
 const url=new URL(location.href);
@@ -17,7 +17,7 @@ let clientId;try{clientId=sessionStorage.getItem('asosiyDevice');if(!clientId){c
 let view={...DEFAULT_VIEW},remote=null,connected=false,active=false,busy=false,dirty=false,localVersion=0,lastHeartbeat=0,pollBusy=false,dataBusy=false,dataOnline=false,noticeTimer,initialMonthChosen=false,lastLiveData=null,everLoaded=false,applyingRemoteScroll=false,scrollSendTimers={};
 $('deviceRole').value=role;
 if(CONFIG.snapshot?.records?.length)setLiveRecords(CONFIG.snapshot.records);
-if(isPreview){view={...view,month:CONFIG.previewMonth??6,day:1};$('sourceTag').textContent='ZAXIRA MA’LUMOT · KO‘RINISH';$('sourceTag').className='offline';$('dataStatus').textContent='Dizaynni ko‘rish · ZIP ichidagi saqlangan ma’lumot · LIVE emas';$('versionLabel').textContent='V20.7 · Asosiy 3 · Ko‘rinish';}
+if(isPreview){view={...view,month:CONFIG.previewMonth??6,day:1};$('sourceTag').textContent='ZAXIRA MA’LUMOT · KO‘RINISH';$('sourceTag').className='offline';$('dataStatus').textContent='Dizaynni ko‘rish · ZIP ichidagi saqlangan ma’lumot · LIVE emas';$('versionLabel').textContent='V20.8 · Asosiy 3 · Ko‘rinish';}
 else if(CONFIG.snapshot){$('sourceTag').textContent='ZAXIRA · ULANMOQDA';$('sourceTag').className='offline';$('dataStatus').textContent='ZIP ichidagi zaxira ma’lumot · serverga ulanmoqda…';}
 $('month').innerHTML=MONTHS.map((m,i)=>`<option value="${i}">${m}</option>`).join('');
 $('departmentFilter').innerHTML='<option value="">Barcha bo‘limlar</option>'+DEPTS.map(d=>`<option value="${d.code}">${esc(d.name)}</option>`).join('');
@@ -182,7 +182,7 @@ for(const el of document.querySelectorAll('.kpi.clickable')){el.tabIndex=0;el.se
 $('employees').addEventListener('input',e=>{const key={employeeSearch:'query',tableShift:'tableShift',tableStatus:'tableStatus',minHours:'minHours',maxHours:'maxHours'}[e.target.id];if(key){const val=e.target.value;if(['minHours','maxHours'].includes(key)&&val!==''&&(Number(val)<0||Number(val)>744))return;change({[key]:val});}});
 $('adminOpen').textContent='⚙ Boshqaruv';$('adminOpen').addEventListener('click',()=>$('settingsDialog').showModal());$('closeSettings').addEventListener('click',()=>$('settingsDialog').close());
 $('full').addEventListener('click',async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else if(document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen();else notify('Bu brauzerda to‘liq ekran qo‘llanmaydi.');}catch{notify('To‘liq ekran ochilmadi. Brauzer ruxsatini tekshiring.');}});
-$('deviceRole').addEventListener('change',()=>{if(lockedMonitor||isPreview)return;role=$('deviceRole').value;active=false;dirty=false;remote=null;url.searchParams.set('mode',role);try{history.replaceState({},'',url);}catch{}uiPermissions();void poll();});
+$('deviceRole').addEventListener('change',()=>{if(lockedMonitor||isPreview)return;role=$('deviceRole').value;active=false;dirty=false;remote=null;url.searchParams.set('mode',role);try{history.replaceState({},'',url);}catch{}uiPermissions();void (async()=>{await poll();if(role==='phone')await action('claim');})();});
 function timeoutSignal(ms){if(typeof AbortSignal!=='undefined'&&AbortSignal.timeout)return AbortSignal.timeout(ms);const c=new AbortController();setTimeout(()=>c.abort(),ms);return c.signal;}
 function headers(){return {'Content-Type':'application/json','X-Dashboard-Role':role,'X-Dashboard-Device':clientId};}
 async function request(body){const response=await fetch(apiPath('/api/state'),{method:body?'POST':'GET',headers:headers(),body:body?JSON.stringify(body):undefined,cache:'no-store',signal:timeoutSignal(7000)});const data=await response.json();if(!response.ok)throw Object.assign(Error(data.error||'Ulanish xatosi.'),{status:response.status});return data;}
@@ -273,4 +273,13 @@ $('manualRefresh').addEventListener('click',async()=>{
  finally{b.classList.remove('refreshing');b.disabled=false;}
 });
 updateClock();setInterval(updateClock,1000);render();void clearLegacyCaches();
-if(!isPreview){void checkBuildVersion();void syncData();if(url.searchParams.get('take_control')==='1'&&!lockedMonitor)void action('claim');else void poll();setInterval(checkBuildVersion,2000);setInterval(syncData,2000);setInterval(()=>{if(role==='monitor')void poll();},250);setInterval(()=>{if(role!=='monitor')void poll();},700);}
+if(!isPreview){
+ void checkBuildVersion();void syncData();
+ const autoTake=url.searchParams.get('take_control')==='1'||role==='phone';
+ if(autoTake&&!lockedMonitor){
+   void (async()=>{await poll();if(role==='phone'||url.searchParams.get('take_control')==='1')await action('claim');})();
+ }else void poll();
+ setInterval(checkBuildVersion,2000);setInterval(syncData,2000);
+ setInterval(()=>{if(role==='monitor')void poll();},250);
+ setInterval(()=>{if(role!=='monitor')void poll();},700);
+}
