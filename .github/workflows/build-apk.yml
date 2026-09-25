@@ -1,4 +1,4 @@
-name: Build V20 Asosiy 3 Variant 3 APK
+name: Build V20 Asosiy 3 Final 18 Phone Sync APK
 
 on:
   workflow_dispatch:
@@ -102,8 +102,8 @@ jobs:
                   minSdk 23
                   targetSdk 35
 
-                  versionCode 20003
-                  versionName '20.3'
+                  versionCode 20018
+                  versionName '20.8'
               }
           }
           EOF
@@ -213,7 +213,7 @@ jobs:
               // V18 SERVER
               // =================================================
               private static final String SERVER_URL =
-                      "https://v18-dashboard-server.nill-kaffri-2009.workers.dev/phone?mode=phone&v=20.3";
+                      "https://v18-dashboard-server.nill-kaffri-2009.workers.dev/phone?mode=phone&take_control=1&v=20.8";
 
               @Override
               protected void onCreate(Bundle savedInstanceState) {
@@ -293,7 +293,7 @@ jobs:
                   String oldUA = settings.getUserAgentString();
 
                   settings.setUserAgentString(
-                          oldUA + " V20DashboardPhone/20.3"
+                          oldUA + " V20DashboardPhone/20.8"
                   );
 
                   webView.setWebChromeClient(
@@ -594,7 +594,7 @@ jobs:
           echo "======================================"
           echo "ANDROID PROJECT CREATED"
           echo "SERVER:"
-          echo "https://v18-dashboard-server.nill-kaffri-2009.workers.dev/phone?mode=phone&v=20.3"
+          echo "https://v18-dashboard-server.nill-kaffri-2009.workers.dev/phone?mode=phone&take_control=1&v=20.8"
           echo "======================================"
 
       # =========================================================
@@ -647,7 +647,7 @@ jobs:
 
           cp \
             app/build/outputs/apk/debug/app-debug.apk \
-            release/V20_ASOSIY_3_PHONE_3_VARIANT.apk
+            release/V20_ASOSIY_3_PHONE_FINAL18_SYNC.apk
 
           echo "=== RELEASE APK ==="
 
@@ -659,7 +659,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: V20_ASOSIY_3_PHONE_3_VARIANT
-          path: release/V20_ASOSIY_3_PHONE_3_VARIANT.apk
+          name: V20_ASOSIY_3_PHONE_FINAL18_SYNC
+          path: release/V20_ASOSIY_3_PHONE_FINAL18_SYNC.apk
           if-no-files-found: error
           retention-days: 30
