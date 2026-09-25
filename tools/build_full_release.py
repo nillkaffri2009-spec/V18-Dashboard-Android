@@ -5,7 +5,7 @@ from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/"release_full"
-NAME="V20_ASOSIY_3_FINAL_17_CLOUD_MONITOR_SYNC_FIXED"
+NAME="V20_ASOSIY_3_FINAL_18_PHONE_CONTROL_FIXED"
 PKG=OUT/NAME
 CLOUD="https://v18-dashboard-server.nill-kaffri-2009.workers.dev"
 
@@ -183,7 +183,7 @@ redir='''<!doctype html><meta charset="utf-8"><script>location.replace("{route}"
 for fn,route in [
  ("admin.html",f"{CLOUD}/admin?mode=computer&take_control=1"),
  ("monitor.html",f"{CLOUD}/monitor?mode=monitor&tv=43"),
- ("phone.html",f"{CLOUD}/phone?mode=phone"),
+ ("phone.html",f"{CLOUD}/phone?mode=phone&take_control=1"),
  ("Dashboard_GoogleSheets.html",f"{CLOUD}/admin?mode=computer&take_control=1"),
  ("DashBoard_index.html",f"{CLOUD}/admin?mode=computer&take_control=1")]:
     write(PKG/fn,redir.format(route=route))
@@ -207,7 +207,7 @@ start "" "{CLOUD}/admin?mode=computer&take_control=1"
 
 echo.
 echo ============================================================
-echo  FINAL 17: ADMIN + MONITOR BIR XIL CLOUD STATE
+echo  FINAL 18: ADMIN + MONITOR BIR XIL CLOUD STATE
 echo ============================================================
 echo  PC Admin ochildi:
 echo  {CLOUD}/admin?mode=computer
@@ -237,7 +237,7 @@ start "" "http://127.0.0.1:5000/admin?mode=computer"
 start "" "http://127.0.0.1:5000/monitor?mode=monitor&tv=43"
 ''' )
 write(PKG/"START_PHONE.bat",f'''@echo off
-start "" "{CLOUD}/phone?mode=phone"
+start "" "{CLOUD}/phone?mode=phone&take_control=1"
 ''')
 write(PKG/"START_CLOUD.bat",f'''@echo off
 start "" "{CLOUD}/admin?mode=computer"
@@ -265,7 +265,7 @@ echo ===== IPv4 =====
 ipconfig | findstr /R /C:"IPv4"
 pause
 ''')
-write(PKG/"PHONE_MONITOR.txt",f'''FINAL 12 START PRINCIPI — FINAL 17
+write(PKG/"PHONE_MONITOR.txt",f'''FINAL 12 START PRINCIPI — FINAL 18
 
 LOCAL ADMIN:
 http://127.0.0.1:5000/admin?mode=computer
@@ -308,7 +308,7 @@ for p in (ROOT/".github"/"workflows").glob("*.yml"):shutil.copy2(p,src/".github"
 for old in ["V18_ASOSIY_DESIGN_2_CONTROL_SYNC_FIXED.zip","V18_GOOGLE_SHEETS_FINAL_FIXED.zip","V18_KUNLIK_DAVOMAD_PC_MONITOR_PHONE_FIXED.zip"]:
     if (ROOT/old).exists():shutil.copy2(ROOT/old,src/old)
 
-write(PKG/"README_UZ.txt",f'''V20_ASOSIY_3_FINAL_17_CLOUD_MONITOR_SYNC_FIXED
+write(PKG/"README_UZ.txt",f'''V20_ASOSIY_3_FINAL_18_PHONE_CONTROL_FIXED
 
 ISHGA TUSHIRISH:
 1. ZIPni oching.
@@ -321,6 +321,8 @@ ISHGA TUSHIRISH:
 ASOSIY QOIDALAR:
 - FINAL 12 qulayligi saqlandi: bitta START_ALL.
 - Asosiy ish rejimi: PC Admin + Telefon + 43" Monitor bir xil Cloudflare state'da.
+- Telefon ochilishi bilan boshqaruvni avtomatik oladi; PC kuzatuvga o'tadi.
+- Telefonda "Kompyuterga qaytarish" bilan boshqaruv PCga qaytadi.
 - Local port 5000 faqat zaxira/LAN fallback uchun.
 - Kunlik davomad asosiy ekran.
 - Ish soatlari va KPI alohida.
@@ -336,7 +338,7 @@ ASOSIY QOIDALAR:
 CLOUD:
 {CLOUD}
 ''')
-(PKG/"VERSION_INFO.json").write_text(json.dumps({"package":NAME,"version":"20.7-final17-launcher","records":len(data.get("records",[])),"source":data.get("source"),"refreshedAt":data.get("refreshedAt"),"port":5000,"tvDefault":43,"syncMode":"cloud-shared-state","localFallbackPort":5000},ensure_ascii=False,indent=2),encoding="utf-8")
+(PKG/"VERSION_INFO.json").write_text(json.dumps({"package":NAME,"version":"20.8-final18-phone-control","records":len(data.get("records",[])),"source":data.get("source"),"refreshedAt":data.get("refreshedAt"),"port":5000,"tvDefault":43,"syncMode":"cloud-shared-state","localFallbackPort":5000},ensure_ascii=False,indent=2),encoding="utf-8")
 
 zip_path=OUT/(NAME+".zip")
 with zipfile.ZipFile(zip_path,"w",zipfile.ZIP_DEFLATED,allowZip64=True) as z:
