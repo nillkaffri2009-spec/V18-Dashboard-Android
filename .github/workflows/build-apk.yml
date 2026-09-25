@@ -98,7 +98,7 @@ jobs:
               compileSdk 35
 
               defaultConfig {
-                  applicationId 'com.mamuriyat.asosiy3.v20'
+                  applicationId 'com.mamuriyat.asosiy3.v20.final18sync'
                   minSdk 23
                   targetSdk 35
 
@@ -120,7 +120,7 @@ jobs:
 
               <application
                   android:theme="@style/AppTheme"
-                  android:label="V20 Asosiy 3"
+                  android:label="V20 Phone Sync"
                   android:usesCleartextTraffic="false"
                   android:allowBackup="false"
                   android:supportsRtl="true">
@@ -647,7 +647,7 @@ jobs:
 
           cp \
             app/build/outputs/apk/debug/app-debug.apk \
-            release/V20_ASOSIY_3_PHONE_FINAL18_SYNC.apk
+            release/V20_ASOSIY_3_PHONE_FINAL18_INSTALL_FIXED.apk
 
           echo "=== RELEASE APK ==="
 
@@ -659,7 +659,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: V20_ASOSIY_3_PHONE_FINAL18_SYNC
-          path: release/V20_ASOSIY_3_PHONE_FINAL18_SYNC.apk
+          name: V20_ASOSIY_3_PHONE_FINAL18_INSTALL_FIXED
+          path: release/V20_ASOSIY_3_PHONE_FINAL18_INSTALL_FIXED.apk
           if-no-files-found: error
           retention-days: 30
