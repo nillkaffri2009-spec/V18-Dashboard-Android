@@ -2,13 +2,13 @@
 <html lang="uz"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>V20 — Asosiy design 3 — Dashboard</title><meta name="robots" content="noindex,nofollow">
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0">
-<link rel="stylesheet" href="/additions.css?v=20.7-final16"><link rel="icon" href="/favicon.svg">
+<link rel="stylesheet" href="/additions.css?v=20.8-final18"><link rel="icon" href="/favicon.svg">
 </head><body><div class="app v20-asosiy3">
 <header class="header">
  <button id="manualRefresh" class="refresh-top" title="Ma’lumotlarni yangilash">↻ Обновление</button>
  <div class="brand"><span class="brand-icon" aria-hidden="true">▥</span><div><h1>MA'MURIYAT BO'LIMI <span>— REAL-TIME DASHBOARD</span></h1><p>XODIMLAR · DAVOMAT · SAMARADORLIK · SHAFFOFLIK</p></div></div>
  <div class="header-status"><strong id="sourceTag" class="live-tag">MA’LUMOT YUKLANMOQDA</strong><span id="connection" role="status">Ulanmoqda…</span><small id="controlSource">Boshqaruv: kompyuter</small></div>
- <div class="clock"><span id="clockDate"></span><strong id="clockTime"></strong><small>Asosiy 3 · V20.7</small></div>
+ <div class="clock"><span id="clockDate"></span><strong id="clockTime"></strong><small>Asosiy 3 · V20.8</small></div>
 </header>
 <div class="toolbar"><nav class="nav" aria-label="Asosiy bo‘limlar">
  <button data-page="1" class="active"><span aria-hidden="true">♟</span> Kunlik davomad</button>
@@ -48,7 +48,7 @@
  <div id="v3" class="view"><div class="detailbar"><button class="back" onclick="goBackFromDetail()">←</button><span class="detailname">KPI ko‘rsatkichlari</span><span>Davomat asosida</span></div><div class="grid2"><div class="box"><h3>KPI — DAVOMAT BO‘YICHA</h3><div class="barbox" id="kpibars"></div></div><div class="box kpi-overview"><h3>KPI XULOSA</h3><div class="pie" id="pie"><div class="pie-label" id="pieText">—</div></div><div class="kpi-totals"><div><span>O‘rtacha davomat</span><strong id="kpiRate">—</strong></div><div><span>Bo‘limlar</span><strong id="kpiDept">—</strong></div></div></div></div><div class="tablebox box" id="kpiTableScroll"><table class="tbl"><thead><tr><th>№</th><th>Bo‘lim</th><th>Xodimlar</th><th>Ishdagilar</th><th>Yo‘qlar</th><th>KPI %</th></tr></thead><tbody id="kpiTable"></tbody></table></div></div>
  <div id="detail" class="view"><div class="detailbar"><button class="back" onclick="goBackFromDetail()">←</button><span class="detailname" id="detailTitle">Xodimlar ro‘yxati</span></div><div class="detailpanel box"><h3 id="absenceTitle">Xodimlar ro‘yxati</h3><div id="employees"></div></div></div>
 </section></main>
-<footer class="footer"><span id="dataStatus">Ma’lumot yuklanmoqda…</span><i>“Tartib · Mas’uliyat · Natija”</i><span id="versionLabel">V20.7 · Asosiy 3</span></footer>
+<footer class="footer"><span id="dataStatus">Ma’lumot yuklanmoqda…</span><i>“Tartib · Mas’uliyat · Natija”</i><span id="versionLabel">V20.8 · Asosiy 3</span></footer>
 <div id="notice" role="status" aria-live="polite"></div>
 <dialog id="settingsDialog"><div class="dialog-top"><h2>Boshqaruv va ulanish</h2><button id="closeSettings" aria-label="Yopish">×</button></div><p id="deviceHelp">Telefon yoki kompyuterda boshqaruvni oling. Monitor faqat ko‘rsatadi.</p><div class="settings-links"><a href="/admin?mode=computer" target="_blank" rel="noopener">Admin-kompyuter ↗</a><a href="/phone?mode=phone" target="_blank" rel="noopener">Telefon ↗</a><a href="/monitor?mode=monitor" target="_blank" rel="noopener">43″ monitor ↗</a></div><p>Google Sheets har 2 soniyada tekshiriladi. Internet va Google javob tezligiga qarab yuklanish vaqti farq qiladi. Aloqa holati ekranda ko‘rsatiladi.</p><p>Telefon aloqasi uzilsa, taxminan 25 soniyadan keyin boshqaruv kompyuterga qaytadi.</p><p>KPI: ishdagilar ÷ (ishdagilar + yo‘qlar) × 100. Dam olish kunidagi xodimlar hisobga kirmaydi.</p><p>Kun / soat — jadvaldagi ish soati. Kelgan vaqt haqida ma’lumot manbada mavjud emas.</p></dialog>
-</div><script type="module" src="/app.js?v=20.7-final16"></script></body></html>
+</div><script type="module" src="/app.js?v=20.8-final18"></script></body></html>
