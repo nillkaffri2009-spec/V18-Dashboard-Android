@@ -1,0 +1,371 @@
+name: Build Family Camera Safe APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/build-family-camera-safe.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform
+        run: |
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Create Family Camera project
+        shell: bash
+        run: |
+          set -e
+          rm -rf family-camera
+          mkdir -p family-camera/app/src/main/java/uz/familycamera
+          mkdir -p family-camera/app/src/main/res/layout
+          mkdir -p family-camera/app/src/main/res/values
+          mkdir -p family-camera/release
+
+          cat > family-camera/settings.gradle.kts <<'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+
+          dependencyResolutionManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+
+          rootProject.name = "FamilyCamera"
+          include(":app")
+          EOF
+
+          cat > family-camera/build.gradle.kts <<'EOF'
+          plugins {
+              id("com.android.application") version "8.7.3" apply false
+              id("org.jetbrains.kotlin.android") version "2.0.21" apply false
+          }
+          EOF
+
+          cat > family-camera/gradle.properties <<'EOF'
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          android.useAndroidX=true
+          android.nonTransitiveRClass=true
+          kotlin.code.style=official
+          EOF
+
+          cat > family-camera/app/build.gradle.kts <<'EOF'
+          plugins {
+              id("com.android.application")
+              id("org.jetbrains.kotlin.android")
+          }
+
+          android {
+              namespace = "uz.familycamera"
+              compileSdk = 35
+
+              defaultConfig {
+                  applicationId = "uz.familycamera"
+                  minSdk = 26
+                  targetSdk = 35
+                  versionCode = 2
+                  versionName = "1.1-safe"
+              }
+
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
+
+              kotlinOptions {
+                  jvmTarget = "17"
+              }
+          }
+
+          dependencies {
+              implementation("androidx.core:core-ktx:1.15.0")
+              implementation("androidx.appcompat:appcompat:1.7.0")
+              implementation("androidx.activity:activity-ktx:1.10.0")
+              implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+              implementation("androidx.camera:camera-camera2:1.4.1")
+              implementation("androidx.camera:camera-lifecycle:1.4.1")
+              implementation("androidx.camera:camera-view:1.4.1")
+          }
+          EOF
+
+          cat > family-camera/app/src/main/AndroidManifest.xml <<'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.CAMERA"/>
+              <uses-feature android:name="android.hardware.camera.any" android:required="true"/>
+
+              <application
+                  android:theme="@style/AppTheme"
+                  android:label="Family Camera"
+                  android:allowBackup="false"
+                  android:supportsRtl="true">
+
+                  <activity
+                      android:name=".MainActivity"
+                      android:screenOrientation="portrait"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LAUNCHER"/>
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
+          cat > family-camera/app/src/main/res/values/styles.xml <<'EOF'
+          <resources>
+              <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
+                  <item name="android:fontFamily">sans</item>
+                  <item name="android:colorAccent">#1565C0</item>
+              </style>
+          </resources>
+          EOF
+
+          cat > family-camera/app/src/main/res/layout/activity_main.xml <<'EOF'
+          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:orientation="vertical"
+              android:padding="16dp">
+
+              <TextView
+                  android:id="@+id/title"
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"
+                  android:text="Family Camera"
+                  android:textSize="24sp"
+                  android:textStyle="bold"/>
+
+              <TextView
+                  android:id="@+id/status"
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"
+                  android:text="Камерани бошлаш учун тугмани босинг."
+                  android:textSize="16sp"
+                  android:paddingTop="8dp"
+                  android:paddingBottom="8dp"/>
+
+              <androidx.camera.view.PreviewView
+                  android:id="@+id/preview"
+                  android:layout_width="match_parent"
+                  android:layout_height="0dp"
+                  android:layout_weight="1"
+                  android:visibility="gone"/>
+
+              <Button
+                  android:id="@+id/switchCamera"
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"
+                  android:text="ОЛД / ОРҚА КАМЕРА"
+                  android:enabled="false"/>
+
+              <Button
+                  android:id="@+id/start"
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"
+                  android:text="КАМЕРАНИ БОШЛАШ"/>
+
+              <Button
+                  android:id="@+id/stop"
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"
+                  android:text="ТЎХТАТИШ"
+                  android:enabled="false"/>
+
+              <TextView
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"
+                  android:text="Хавфсиз прототип: камера фақат шу телефон экранида очиқ кўринади. Фонда ёки интернет орқали яширин узатиш йўқ."
+                  android:textSize="13sp"
+                  android:paddingTop="12dp"/>
+          </LinearLayout>
+          EOF
+
+          cat > family-camera/app/src/main/java/uz/familycamera/MainActivity.kt <<'EOF'
+          package uz.familycamera
+
+          import android.Manifest
+          import android.content.pm.PackageManager
+          import android.os.Bundle
+          import android.view.View
+          import android.view.WindowManager
+          import android.widget.Button
+          import android.widget.TextView
+          import androidx.activity.ComponentActivity
+          import androidx.camera.core.CameraSelector
+          import androidx.camera.core.Preview
+          import androidx.camera.lifecycle.ProcessCameraProvider
+          import androidx.camera.view.PreviewView
+          import androidx.core.app.ActivityCompat
+          import androidx.core.content.ContextCompat
+
+          class MainActivity : ComponentActivity() {
+              private lateinit var preview: PreviewView
+              private lateinit var status: TextView
+              private lateinit var start: Button
+              private lateinit var stop: Button
+              private lateinit var switchCamera: Button
+
+              private var provider: ProcessCameraProvider? = null
+              private var lensFacing = CameraSelector.LENS_FACING_BACK
+              private var cameraRunning = false
+
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  setContentView(R.layout.activity_main)
+
+                  preview = findViewById(R.id.preview)
+                  status = findViewById(R.id.status)
+                  start = findViewById(R.id.start)
+                  stop = findViewById(R.id.stop)
+                  switchCamera = findViewById(R.id.switchCamera)
+
+                  start.setOnClickListener { requestAndStart() }
+                  stop.setOnClickListener { stopCamera() }
+                  switchCamera.setOnClickListener {
+                      lensFacing =
+                          if (lensFacing == CameraSelector.LENS_FACING_BACK)
+                              CameraSelector.LENS_FACING_FRONT
+                          else
+                              CameraSelector.LENS_FACING_BACK
+                      bindCamera()
+                  }
+              }
+
+              private fun requestAndStart() {
+                  if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+                      != PackageManager.PERMISSION_GRANTED) {
+                      ActivityCompat.requestPermissions(
+                          this,
+                          arrayOf(Manifest.permission.CAMERA),
+                          10
+                      )
+                  } else {
+                      startCamera()
+                  }
+              }
+
+              override fun onRequestPermissionsResult(
+                  requestCode: Int,
+                  permissions: Array<out String>,
+                  grantResults: IntArray
+              ) {
+                  super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+                  if (requestCode == 10 &&
+                      grantResults.isNotEmpty() &&
+                      grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
+                      startCamera()
+                  } else {
+                      status.text = "Камера рухсати керак."
+                  }
+              }
+
+              private fun startCamera() {
+                  val future = ProcessCameraProvider.getInstance(this)
+                  future.addListener({
+                      provider = future.get()
+                      cameraRunning = true
+                      preview.visibility = View.VISIBLE
+                      start.isEnabled = false
+                      stop.isEnabled = true
+                      switchCamera.isEnabled = true
+                      window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                      bindCamera()
+                  }, ContextCompat.getMainExecutor(this))
+              }
+
+              private fun bindCamera() {
+                  val p = provider ?: return
+                  val selector = CameraSelector.Builder()
+                      .requireLensFacing(lensFacing)
+                      .build()
+
+                  try {
+                      if (!p.hasCamera(selector)) {
+                          status.text = "Бу камера мавжуд эмас."
+                          return
+                      }
+
+                      val previewUseCase = Preview.Builder().build().also {
+                          it.surfaceProvider = preview.surfaceProvider
+                      }
+
+                      p.unbindAll()
+                      p.bindToLifecycle(this, selector, previewUseCase)
+
+                      val side =
+                          if (lensFacing == CameraSelector.LENS_FACING_BACK)
+                              "ОРҚА"
+                          else
+                              "ОЛД"
+
+                      status.text = "КАМЕРА ОЧИҚ (" + side + "). Тасвир фақат шу телефонда кўринади."
+                  } catch (e: Exception) {
+                      status.text = "Камерани очишда хато: " + (e.message ?: "номаълум хато")
+                  }
+              }
+
+              private fun stopCamera() {
+                  provider?.unbindAll()
+                  cameraRunning = false
+                  preview.visibility = View.GONE
+                  start.isEnabled = true
+                  stop.isEnabled = false
+                  switchCamera.isEnabled = false
+                  window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                  status.text = "Камера тўхтатилди."
+              }
+
+              override fun onStop() {
+                  if (cameraRunning) {
+                      stopCamera()
+                  }
+                  super.onStop()
+              }
+          }
+          EOF
+
+      - name: Build debug APK
+        working-directory: family-camera
+        run: |
+          set -e
+          gradle clean assembleDebug --no-daemon
+          test -f app/build/outputs/apk/debug/app-debug.apk
+          cp app/build/outputs/apk/debug/app-debug.apk release/FamilyCamera-v1.1-SAFE.apk
+          ls -lh release/FamilyCamera-v1.1-SAFE.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: FamilyCamera-v1.1-SAFE
+          path: family-camera/release/FamilyCamera-v1.1-SAFE.apk
+          if-no-files-found: error
+          retention-days: 30
