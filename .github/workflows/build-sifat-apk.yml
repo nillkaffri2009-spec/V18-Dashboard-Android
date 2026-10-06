@@ -1,0 +1,514 @@
+name: Build Sifat Dashboard V6 Phone APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/build-sifat-apk.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Create Android project
+        shell: bash
+        run: |
+          set -e
+          rm -rf app release settings.gradle build.gradle gradle.properties
+          mkdir -p app/src/main/java/com/sifat/dashboard/phone
+          mkdir -p app/src/main/res/values
+          mkdir -p release
+
+          cat > settings.gradle <<'EOF'
+          pluginManagement {
+              repositories { google(); mavenCentral(); gradlePluginPortal() }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories { google(); mavenCentral() }
+          }
+          rootProject.name = "SifatDashboardPhone"
+          include(":app")
+          EOF
+
+          cat > build.gradle <<'EOF'
+          plugins {
+              id 'com.android.application' version '8.6.1' apply false
+          }
+          EOF
+
+          cat > gradle.properties <<'EOF'
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          android.useAndroidX=true
+          android.nonTransitiveRClass=true
+          EOF
+
+          cat > app/build.gradle <<'EOF'
+          plugins { id 'com.android.application' }
+
+          android {
+              namespace 'com.sifat.dashboard.phone'
+              compileSdk 35
+
+              defaultConfig {
+                  applicationId 'com.sifat.dashboard.phone'
+                  minSdk 23
+                  targetSdk 35
+                  versionCode 60001
+                  versionName '6.0.1'
+              }
+
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+          }
+          EOF
+
+          cat > app/src/main/AndroidManifest.xml <<'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+              <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+
+              <application
+                  android:theme="@style/AppTheme"
+                  android:label="Sifat Dashboard"
+                  android:usesCleartextTraffic="true"
+                  android:allowBackup="false"
+                  android:supportsRtl="true">
+
+                  <activity
+                      android:name=".MainActivity"
+                      android:configChanges="orientation|screenSize|keyboardHidden"
+                      android:screenOrientation="unspecified"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
+          cat > app/src/main/res/values/styles.xml <<'EOF'
+          <resources>
+              <style name="AppTheme" parent="android:style/Theme.Material.NoActionBar">
+                  <item name="android:fontFamily">sans</item>
+                  <item name="android:colorAccent">#2998FF</item>
+                  <item name="android:windowLightStatusBar">false</item>
+                  <item name="android:statusBarColor">#06121F</item>
+                  <item name="android:navigationBarColor">#04111E</item>
+                  <item name="android:windowActionModeOverlay">true</item>
+                  <item name="android:windowNoTitle">true</item>
+              </style>
+          </resources>
+          EOF
+
+          cat > app/src/main/java/com/sifat/dashboard/phone/MainActivity.java <<'EOF'
+          package com.sifat.dashboard.phone;
+
+          import android.app.Activity;
+          import android.os.Bundle;
+          import android.os.Handler;
+          import android.os.Looper;
+          import android.content.Context;
+          import android.content.SharedPreferences;
+          import android.graphics.Color;
+          import android.graphics.Typeface;
+          import android.net.ConnectivityManager;
+          import android.net.Network;
+          import android.net.Uri;
+          import android.view.Gravity;
+          import android.view.ViewGroup;
+          import android.webkit.WebChromeClient;
+          import android.webkit.WebResourceError;
+          import android.webkit.WebResourceRequest;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+          import android.widget.Button;
+          import android.widget.EditText;
+          import android.widget.LinearLayout;
+          import android.widget.ScrollView;
+          import android.widget.TextView;
+
+          import java.io.BufferedReader;
+          import java.io.InputStreamReader;
+          import java.net.HttpURLConnection;
+          import java.net.Inet4Address;
+          import java.net.InetAddress;
+          import java.net.NetworkInterface;
+          import java.net.URL;
+          import java.util.Collections;
+          import java.util.concurrent.ExecutorService;
+          import java.util.concurrent.Executors;
+          import java.util.concurrent.atomic.AtomicBoolean;
+
+          public class MainActivity extends Activity {
+              private static final int BG = Color.rgb(6,18,31);
+              private static final int PANEL = Color.rgb(10,29,48);
+              private static final int LINE = Color.rgb(36,69,95);
+              private static final int TEXT = Color.rgb(234,243,255);
+              private static final int MUTED = Color.rgb(145,175,208);
+              private static final int BLUE = Color.rgb(41,152,255);
+
+              private final Handler ui = new Handler(Looper.getMainLooper());
+              private final ExecutorService pool = Executors.newFixedThreadPool(32);
+              private SharedPreferences prefs;
+              private WebView webView;
+              private EditText serverInput;
+              private TextView statusText;
+              private String serverBase = "";
+              private boolean inSetup = true;
+              private ConnectivityManager connectivityManager;
+              private ConnectivityManager.NetworkCallback networkCallback;
+
+              @Override
+              protected void onCreate(Bundle state) {
+                  super.onCreate(state);
+                  prefs = getSharedPreferences("sifat_dashboard", MODE_PRIVATE);
+                  String saved = prefs.getString("server_base", "");
+                  showSetup("Sifat Dashboard serveriga ulanish");
+                  if (saved != null && !saved.isEmpty()) {
+                      serverInput.setText(saved);
+                      testAndOpen(saved, true);
+                  } else {
+                      autoDiscover();
+                  }
+                  registerNetworkMonitor();
+              }
+
+              private TextView label(String text, int size, int color) {
+                  TextView v = new TextView(this);
+                  v.setText(text);
+                  v.setTextSize(size);
+                  v.setTextColor(color);
+                  v.setPadding(0, 10, 0, 10);
+                  return v;
+              }
+
+              private Button button(String text) {
+                  Button b = new Button(this);
+                  b.setText(text);
+                  b.setTextColor(TEXT);
+                  b.setTextSize(16);
+                  b.setBackgroundColor(Color.rgb(17,43,70));
+                  LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                          ViewGroup.LayoutParams.MATCH_PARENT,
+                          ViewGroup.LayoutParams.WRAP_CONTENT);
+                  lp.setMargins(0, 8, 0, 8);
+                  b.setLayoutParams(lp);
+                  return b;
+              }
+
+              private void showSetup(String message) {
+                  inSetup = true;
+                  if (webView != null) {
+                      try { webView.stopLoading(); webView.destroy(); } catch (Exception ignored) {}
+                      webView = null;
+                  }
+
+                  ScrollView scroll = new ScrollView(this);
+                  scroll.setBackgroundColor(BG);
+                  LinearLayout root = new LinearLayout(this);
+                  root.setOrientation(LinearLayout.VERTICAL);
+                  root.setPadding(38, 50, 38, 50);
+                  root.setBackgroundColor(BG);
+
+                  TextView eyebrow = label("SIFAT DASHBOARD", 14, Color.rgb(109,189,255));
+                  eyebrow.setTypeface(Typeface.DEFAULT_BOLD);
+                  root.addView(eyebrow);
+
+                  TextView title = label("SIFAT — REAL-TIME DASHBOARD", 24, TEXT);
+                  title.setTypeface(Typeface.DEFAULT_BOLD);
+                  root.addView(title);
+
+                  statusText = label(message, 16, MUTED);
+                  root.addView(statusText);
+
+                  TextView hint = label(
+                          "Telefon va kompyuter bir xil Wi‑Fi/LAN tarmog‘ida bo‘lsa, server avtomatik topiladi. " +
+                          "Kerak bo‘lsa PC dagi LAN manzilini qo‘lda kiriting.",
+                          14, MUTED);
+                  root.addView(hint);
+
+                  serverInput = new EditText(this);
+                  serverInput.setHint("Masalan: 192.168.1.25 yoki http://192.168.1.25:8765");
+                  serverInput.setHintTextColor(Color.rgb(111,139,165));
+                  serverInput.setTextColor(TEXT);
+                  serverInput.setSingleLine(true);
+                  serverInput.setPadding(16, 14, 16, 14);
+                  serverInput.setBackgroundColor(PANEL);
+                  root.addView(serverInput, new LinearLayout.LayoutParams(
+                          ViewGroup.LayoutParams.MATCH_PARENT,
+                          ViewGroup.LayoutParams.WRAP_CONTENT));
+
+                  Button connect = button("ULANISH");
+                  connect.setBackgroundColor(Color.rgb(20,106,195));
+                  connect.setOnClickListener(v -> testAndOpen(serverInput.getText().toString(), false));
+                  root.addView(connect);
+
+                  Button scan = button("LAN ICHIDA AVTOMATIK TOPISH");
+                  scan.setOnClickListener(v -> autoDiscover());
+                  root.addView(scan);
+
+                  Button clear = button("SAQLANGAN MANZILNI TOZALASH");
+                  clear.setOnClickListener(v -> {
+                      prefs.edit().remove("server_base").apply();
+                      serverInput.setText("");
+                      statusText.setText("Saqlangan server manzili tozalandi.");
+                  });
+                  root.addView(clear);
+
+                  TextView note = label(
+                          "APK faqat Sifat Dashboard serveriga ulanadi. Monitor rejimi faqat ko‘rish uchun, " +
+                          "telefon esa boshqaruvni olish imkoniga ega.",
+                          13, MUTED);
+                  note.setGravity(Gravity.CENTER_HORIZONTAL);
+                  root.addView(note);
+
+                  scroll.addView(root);
+                  setContentView(scroll);
+              }
+
+              private String normalizeBase(String raw) {
+                  String s = raw == null ? "" : raw.trim();
+                  if (s.isEmpty()) return "";
+                  if (!s.startsWith("http://") && !s.startsWith("https://")) s = "http://" + s;
+                  while (s.endsWith("/")) s = s.substring(0, s.length()-1);
+                  try {
+                      Uri u = Uri.parse(s);
+                      String scheme = u.getScheme();
+                      String host = u.getHost();
+                      if (host == null || scheme == null) return "";
+                      int port = u.getPort();
+                      if (port < 0 && "http".equalsIgnoreCase(scheme)) port = 8765;
+                      String base = scheme + "://" + host + (port > 0 ? ":" + port : "");
+                      return base;
+                  } catch (Exception e) {
+                      return "";
+                  }
+              }
+
+              private boolean isSifatServer(String base, int timeoutMs) {
+                  HttpURLConnection c = null;
+                  try {
+                      URL url = new URL(base + "/api/health");
+                      c = (HttpURLConnection) url.openConnection();
+                      c.setRequestMethod("GET");
+                      c.setConnectTimeout(timeoutMs);
+                      c.setReadTimeout(timeoutMs);
+                      c.setUseCaches(false);
+                      int code = c.getResponseCode();
+                      if (code != 200) return false;
+                      BufferedReader br = new BufferedReader(new InputStreamReader(c.getInputStream()));
+                      StringBuilder sb = new StringBuilder();
+                      String line;
+                      while ((line = br.readLine()) != null && sb.length() < 2048) sb.append(line);
+                      String body = sb.toString();
+                      return body.contains("\"ok\": true") || body.contains("\"ok\":true")
+                              ? (body.contains("Sifat Dashboard") || body.contains("Sifat dashboard 2026.xlsx"))
+                              : false;
+                  } catch (Exception e) {
+                      return false;
+                  } finally {
+                      if (c != null) c.disconnect();
+                  }
+              }
+
+              private void testAndOpen(String raw, boolean silent) {
+                  final String base = normalizeBase(raw);
+                  if (base.isEmpty()) {
+                      if (!silent && statusText != null) statusText.setText("Server manzilini to‘g‘ri kiriting.");
+                      return;
+                  }
+                  if (statusText != null) statusText.setText("Ulanish tekshirilmoqda: " + base);
+                  pool.execute(() -> {
+                      boolean ok = isSifatServer(base, 1200);
+                      ui.post(() -> {
+                          if (ok) openDashboard(base);
+                          else if (!silent && statusText != null)
+                              statusText.setText("Sifat Dashboard topilmadi. PC server ishlayotganini va Wi‑Fi bir xil ekanini tekshiring.");
+                          else autoDiscover();
+                      });
+                  });
+              }
+
+              private String localPrefix() {
+                  try {
+                      for (NetworkInterface ni : Collections.list(NetworkInterface.getNetworkInterfaces())) {
+                          if (!ni.isUp() || ni.isLoopback()) continue;
+                          for (InetAddress a : Collections.list(ni.getInetAddresses())) {
+                              if (a instanceof Inet4Address && a.isSiteLocalAddress()) {
+                                  String ip = a.getHostAddress();
+                                  int p = ip.lastIndexOf('.');
+                                  if (p > 0) return ip.substring(0, p);
+                              }
+                          }
+                      }
+                  } catch (Exception ignored) {}
+                  return null;
+              }
+
+              private void autoDiscover() {
+                  if (statusText != null) statusText.setText("LAN ichida Sifat Dashboard qidirilmoqda…");
+                  final String prefix = localPrefix();
+                  if (prefix == null) {
+                      if (statusText != null) statusText.setText("LAN IP aniqlanmadi. Server manzilini qo‘lda kiriting.");
+                      return;
+                  }
+                  AtomicBoolean found = new AtomicBoolean(false);
+                  for (int i = 1; i <= 254; i++) {
+                      final String base = "http://" + prefix + "." + i + ":8765";
+                      pool.execute(() -> {
+                          if (found.get()) return;
+                          if (isSifatServer(base, 450) && found.compareAndSet(false, true)) {
+                              ui.post(() -> openDashboard(base));
+                          }
+                      });
+                  }
+                  ui.postDelayed(() -> {
+                      if (!found.get() && statusText != null)
+                          statusText.setText("Avtomatik qidirishda topilmadi. PC dagi PHONE/LAN manzilini kiriting.");
+                  }, 8000);
+              }
+
+              private void openDashboard(String base) {
+                  serverBase = base;
+                  prefs.edit().putString("server_base", base).apply();
+                  inSetup = false;
+                  createWebView();
+                  webView.loadUrl(base + "/phone?mode=phone&take_control=1&apk=1&v=6.0");
+              }
+
+              private void createWebView() {
+                  webView = new WebView(this);
+                  webView.setBackgroundColor(BG);
+                  WebSettings s = webView.getSettings();
+                  s.setJavaScriptEnabled(true);
+                  s.setDomStorageEnabled(true);
+                  s.setDatabaseEnabled(true);
+                  s.setLoadWithOverviewMode(true);
+                  s.setUseWideViewPort(true);
+                  s.setSupportZoom(true);
+                  s.setBuiltInZoomControls(true);
+                  s.setDisplayZoomControls(false);
+                  s.setJavaScriptCanOpenWindowsAutomatically(false);
+                  s.setMediaPlaybackRequiresUserGesture(false);
+                  s.setCacheMode(WebSettings.LOAD_NO_CACHE);
+                  s.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
+                  s.setUserAgentString(s.getUserAgentString() + " SifatDashboardPhone/6.0");
+                  webView.setWebChromeClient(new WebChromeClient());
+                  webView.setWebViewClient(new WebViewClient() {
+                      @Override
+                      public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                          Uri u = request.getUrl();
+                          Uri root = Uri.parse(serverBase);
+                          boolean sameHost = root.getHost() != null && root.getHost().equalsIgnoreCase(u.getHost());
+                          boolean samePort = root.getPort() == u.getPort();
+                          boolean http = "http".equalsIgnoreCase(u.getScheme()) || "https".equalsIgnoreCase(u.getScheme());
+                          return !(sameHost && samePort && http);
+                      }
+
+                      @Override
+                      public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+                          if (request.isForMainFrame()) {
+                              ui.post(() -> {
+                                  String last = serverBase;
+                                  showSetup("Server bilan aloqa uzildi.");
+                                  if (serverInput != null) serverInput.setText(last);
+                              });
+                          }
+                      }
+                  });
+                  setContentView(webView);
+              }
+
+              private void registerNetworkMonitor() {
+                  try {
+                      connectivityManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+                      networkCallback = new ConnectivityManager.NetworkCallback() {
+                          @Override public void onAvailable(Network network) {
+                              ui.postDelayed(() -> {
+                                  if (inSetup && (serverInput == null || serverInput.getText().toString().trim().isEmpty())) autoDiscover();
+                              }, 900);
+                          }
+                      };
+                      connectivityManager.registerDefaultNetworkCallback(networkCallback);
+                  } catch (Exception ignored) {}
+              }
+
+              @Override
+              public void onBackPressed() {
+                  if (!inSetup && webView != null) {
+                      if (webView.canGoBack()) webView.goBack();
+                      else {
+                          String last = serverBase;
+                          showSetup("Server manzilini o‘zgartirish yoki qayta ulanish.");
+                          if (serverInput != null) serverInput.setText(last);
+                      }
+                  } else {
+                      super.onBackPressed();
+                  }
+              }
+
+              @Override
+              protected void onDestroy() {
+                  try {
+                      if (connectivityManager != null && networkCallback != null)
+                          connectivityManager.unregisterNetworkCallback(networkCallback);
+                  } catch (Exception ignored) {}
+                  pool.shutdownNow();
+                  if (webView != null) {
+                      try { webView.stopLoading(); webView.destroy(); } catch (Exception ignored) {}
+                  }
+                  super.onDestroy();
+              }
+          }
+          EOF
+
+      - name: Install Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - name: Build APK
+        shell: bash
+        run: |
+          set -e
+          gradle clean assembleDebug --no-daemon
+          test -f app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Verify and rename APK
+        shell: bash
+        run: |
+          set -e
+          TOOLS=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)
+          "$TOOLS/apksigner" verify --verbose app/build/outputs/apk/debug/app-debug.apk
+          "$TOOLS/aapt" dump badging app/build/outputs/apk/debug/app-debug.apk | head -8
+          cp app/build/outputs/apk/debug/app-debug.apk release/SIFAT_DASHBOARD_PHONE_V6.apk
+          sha256sum release/SIFAT_DASHBOARD_PHONE_V6.apk > release/SIFAT_DASHBOARD_PHONE_V6.apk.sha256
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: SIFAT_DASHBOARD_PHONE_V6
+          path: |
+            release/SIFAT_DASHBOARD_PHONE_V6.apk
+            release/SIFAT_DASHBOARD_PHONE_V6.apk.sha256
+          if-no-files-found: error
+          retention-days: 30
