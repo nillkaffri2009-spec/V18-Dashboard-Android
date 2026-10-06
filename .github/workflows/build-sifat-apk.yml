@@ -521,8 +521,9 @@ jobs:
           mkdir -p SIFAT_RELEASE
           cp release/SIFAT_DASHBOARD_PHONE_V6.apk SIFAT_RELEASE/SIFAT_DASHBOARD_PHONE_V6.apk
           cp release/SIFAT_DASHBOARD_PHONE_V6.apk.sha256 SIFAT_RELEASE/SIFAT_DASHBOARD_PHONE_V6.apk.sha256
+          base64 -w 0 release/SIFAT_DASHBOARD_PHONE_V6.apk > SIFAT_RELEASE/SIFAT_DASHBOARD_PHONE_V6.apk.b64
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add SIFAT_RELEASE/SIFAT_DASHBOARD_PHONE_V6.apk SIFAT_RELEASE/SIFAT_DASHBOARD_PHONE_V6.apk.sha256
+          git add SIFAT_RELEASE/SIFAT_DASHBOARD_PHONE_V6.apk SIFAT_RELEASE/SIFAT_DASHBOARD_PHONE_V6.apk.sha256 SIFAT_RELEASE/SIFAT_DASHBOARD_PHONE_V6.apk.b64
           git commit -m "Build Sifat Dashboard V6 APK [skip ci]" || exit 0
           git push
