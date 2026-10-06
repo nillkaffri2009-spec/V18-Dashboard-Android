@@ -7,7 +7,7 @@ on:
       - ".github/workflows/build-sifat-apk.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -512,3 +512,17 @@ jobs:
             release/SIFAT_DASHBOARD_PHONE_V6.apk.sha256
           if-no-files-found: error
           retention-days: 30
+
+
+      - name: Commit APK to repository
+        shell: bash
+        run: |
+          set -e
+          mkdir -p SIFAT_RELEASE
+          cp release/SIFAT_DASHBOARD_PHONE_V6.apk SIFAT_RELEASE/SIFAT_DASHBOARD_PHONE_V6.apk
+          cp release/SIFAT_DASHBOARD_PHONE_V6.apk.sha256 SIFAT_RELEASE/SIFAT_DASHBOARD_PHONE_V6.apk.sha256
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add SIFAT_RELEASE/SIFAT_DASHBOARD_PHONE_V6.apk SIFAT_RELEASE/SIFAT_DASHBOARD_PHONE_V6.apk.sha256
+          git commit -m "Build Sifat Dashboard V6 APK [skip ci]" || exit 0
+          git push
