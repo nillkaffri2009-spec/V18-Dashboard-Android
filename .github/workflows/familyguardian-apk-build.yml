@@ -1,0 +1,55 @@
+name: FamilyGuardian APK Build
+
+on:
+  pull_request:
+    branches:
+      - fg-apk-build-base-20261013
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android 35
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Generate source
+        run: bash .github/scripts/generate_familyguardian_v5.sh
+
+      - name: Build APKs
+        working-directory: fgbuild
+        run: gradle :parent:assembleDebug :child:assembleDebug --stacktrace
+
+      - name: Collect APKs
+        run: |
+          mkdir -p dist
+          cp fgbuild/parent/build/outputs/apk/debug/parent-debug.apk dist/FamilyGuardian_Parent_v5.apk
+          cp fgbuild/child/build/outputs/apk/debug/child-debug.apk dist/FamilyGuardian_Child_v5.apk
+          sha256sum dist/*.apk > dist/SHA256SUMS.txt
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FamilyGuardian_v5_APKs
+          path: dist/*
+          if-no-files-found: error
