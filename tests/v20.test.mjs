@@ -59,3 +59,22 @@ test('role routes use shared app, control selector never contains monitor and po
  for(const role of ['admin','phone','monitor']){assert.equal((await worker.fetch(new Request('https://test/'+role),env)).status,200);assert.equal(path,'/index.html');}
  const health=await (await worker.fetch(new Request('https://test/api/health'),env)).json();assert.equal(health.version,'20.8-cloud');assert.equal(health.assetVersion,'20.8-final18');
 });
+
+
+test('iOS PWA install entry shares the cloud Admin controller and read-only monitor',async()=>{
+ const html=await fs.readFile(new URL('../worker/public/index.html',import.meta.url),'utf8');
+ const manifest=JSON.parse(await fs.readFile(new URL('../worker/public/manifest.webmanifest',import.meta.url),'utf8'));
+ const app=await fs.readFile(new URL('../worker/public/app.js',import.meta.url),'utf8');
+ assert(html.includes('rel="manifest"'));
+ assert(html.includes('apple-mobile-web-app-capable'));
+ assert(html.includes('apple-touch-icon'));
+ assert(html.includes('Admin бошқарувини олиш'));
+ assert(html.includes('iPhone / Android APK — Admin'));
+ assert.equal(manifest.start_url,'/phone?mode=phone');
+ assert.equal(manifest.scope,'/');
+ assert.equal(manifest.display,'standalone');
+ assert(manifest.icons.some(icon=>icon.src.startsWith('/pwa-icon.svg')));
+ assert(app.includes("phone:'Admin (iOS / Android APK)'"));
+ assert(app.includes("$('claim').textContent=active?'Admin бошқаруви сизда':'Admin бошқарувини олиш';"));
+ assert(app.includes("const autoTake=url.searchParams.get('take_control')==='1'||role==='phone'"));
+});
