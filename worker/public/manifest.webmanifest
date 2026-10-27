@@ -1,0 +1,22 @@
+{
+  "id": "/phone?mode=phone",
+  "name": "V25 Ma’muriyat Dashboard",
+  "short_name": "Ma’muriyat",
+  "description": "Ma’muriyat Dashboard — yagona onlayn boshqaruv",
+  "lang": "uz-Latn",
+  "start_url": "/phone?mode=phone",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#f4f7fb",
+  "theme_color": "#143a5b",
+  "icons": [
+    {
+      "src": "/pwa-icon.svg?v=20.9",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
