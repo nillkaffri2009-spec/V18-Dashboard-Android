@@ -1,8 +1,9 @@
 <!doctype html>
-<html lang="uz"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="uz"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#143a5b"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="Ma’muriyat">
 <title>V20 — Asosiy design 3 — Dashboard</title><meta name="robots" content="noindex,nofollow">
 <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0">
-<link rel="stylesheet" href="/additions.css?v=20.8-final18"><link rel="icon" href="/favicon.svg">
+<link rel="stylesheet" href="/additions.css?v=20.8-final18"><link rel="icon" href="/favicon.svg"><link rel="manifest" href="/manifest.webmanifest?v=20.9"><link rel="apple-touch-icon" href="/pwa-icon.svg?v=20.9">
 </head><body><div class="app v20-asosiy3">
 <header class="header">
  <button id="manualRefresh" class="refresh-top" title="Ma’lumotlarni yangilash">↻ Обновление</button>
@@ -17,10 +18,10 @@
  <button id="adminOpen" class="utility">⚙ Boshqaruv</button><button id="full" class="utility">⛶ To‘liq ekran</button>
 </nav></div>
 <div class="device-control">
- <label for="deviceRole">Qurilma</label><select id="deviceRole"><option value="computer">Admin-kompyuter</option><option value="phone">Telefon</option></select>
- <button id="claim" class="primary">Kompyuterdan boshqarish</button><button id="release" hidden>Kompyuterga qaytarish</button>
+ <label for="deviceRole">Admin бошқарувини олувчи қурилма</label><select id="deviceRole"><option value="computer">Компьютер — Admin</option><option value="phone">iPhone / Android APK — Admin</option></select>
+ <button id="claim" class="primary">Admin бошқарувини олиш</button><button id="release" hidden>Бошқарувни компьютерга қайтариш</button>
  <a id="monitorLink" href="/monitor?mode=monitor" target="_blank" rel="noopener">Monitorni alohida ochish ↗</a>
- <span class="device-note">Asosiy 3 · V20</span>
+ <span class="device-note">Бир вақтда битта Admin · монитор фақат кўрсатади</span>
 </div>
 <div class="filter-strip" id="globalFilters">
  <label><span>▦ &nbsp; Bo‘lim</span><select id="departmentFilter"></select></label>
@@ -51,4 +52,4 @@
 <footer class="footer"><span id="dataStatus">Ma’lumot yuklanmoqda…</span><i>“Tartib · Mas’uliyat · Natija”</i><span id="versionLabel">V20.8 · Asosiy 3</span></footer>
 <div id="notice" role="status" aria-live="polite"></div>
 <dialog id="settingsDialog"><div class="dialog-top"><h2>Boshqaruv va ulanish</h2><button id="closeSettings" aria-label="Yopish">×</button></div><p id="deviceHelp">Telefon yoki kompyuterda boshqaruvni oling. Monitor faqat ko‘rsatadi.</p><div class="settings-links"><a href="/admin?mode=computer" target="_blank" rel="noopener">Admin-kompyuter ↗</a><a href="/phone?mode=phone" target="_blank" rel="noopener">Telefon ↗</a><a href="/monitor?mode=monitor" target="_blank" rel="noopener">43″ monitor ↗</a></div><p>Google Sheets har 2 soniyada tekshiriladi. Internet va Google javob tezligiga qarab yuklanish vaqti farq qiladi. Aloqa holati ekranda ko‘rsatiladi.</p><p>Telefon aloqasi uzilsa, taxminan 25 soniyadan keyin boshqaruv kompyuterga qaytadi.</p><p>KPI: ishdagilar ÷ (ishdagilar + yo‘qlar) × 100. Dam olish kunidagi xodimlar hisobga kirmaydi.</p><p>Kun / soat — jadvaldagi ish soati. Kelgan vaqt haqida ma’lumot manbada mavjud emas.</p></dialog>
-</div><script type="module" src="/app.js?v=20.8-final18"></script></body></html>
+</div><script type="module" src="/app.js?v=20.9-admin-unified"></script></body></html>
