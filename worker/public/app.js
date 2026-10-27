@@ -2,7 +2,7 @@ import {MONTHS,DEPTS,DEFAULT_VIEW,daysInMonth,setLiveRecords,filteredEmployees,d
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const number=n=>Number(n).toLocaleString('uz-UZ'),pct=n=>n===null?'—':n.toFixed(1)+'%';
 const labels={present:'Ishda',absent:'Yo‘q',rest:'Dam olish',unknown:'Kiritilmagan'};
-const roleNames={computer:'Admin-kompyuter',phone:'Telefon',monitor:'Monitor'};
+const roleNames={computer:'Admin (kompyuter)',phone:'Admin (iOS / Android APK)',monitor:'Monitor (faqat ko‘rish)'};
 const SHEET_ID='1IWyUdorge58MbvpNlB5Z08Rawm8AdoeHinxgjiFktF4';
 const CONFIG=window.V20_CONFIG||{};
 const APP_BUILD='20.8-cloud';
@@ -59,10 +59,10 @@ function uiPermissions(){
  document.querySelector('.app').classList.toggle('admin-compact',role==='monitor');
  if(isPreview)return;
  $('claim').hidden=role==='monitor';$('claim').disabled=busy||active;
- $('claim').textContent=active?'Boshqaruv sizda':role==='phone'?'Telefondan boshqaruvni olish':'PKdan boshqaruvni olish';
+ $('claim').textContent=active?'Admin boshqaruvi sizda':'Admin boshqaruvini olish';
  $('release').hidden=role!=='phone'||!active;$('release').disabled=busy||!connected;
  $('connection').textContent=connected?'● Ulangan':'● Aloqa yo‘q · qayta urinilmoqda';$('connection').className=connected?'live':'offline';
- $('controlSource').textContent=`Boshqaruv: ${roleNames[remote?.source||'computer']}${role==='monitor'?' · faqat ko‘rish':active?' · sizda':' · kuzatuv'}`;
+ $('controlSource').textContent=`Admin: ${roleNames[remote?.source||'computer']}${role==='monitor'?' · фақат кўриш':active?' · сизда':' · кузатув'}`;
 }
 function ratioFor(el){
  if(!el){const max=Math.max(0,document.documentElement.scrollHeight-window.innerHeight);return max?Math.min(1,Math.max(0,window.scrollY/max)):0;}
